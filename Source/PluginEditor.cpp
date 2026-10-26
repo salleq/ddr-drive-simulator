@@ -542,6 +542,10 @@ void DDRPanel::paint (juce::Graphics& g)
     g.setColour (Colours::dim);
     g.setFont (juce::FontOptions (12.0f, juce::Font::bold));
     g.drawText ("(DREADED) DRIVE SIMULATOR", margin + 84, 20, 220, 16, juce::Justification::centredLeft);
+   #ifdef JucePlugin_VersionString
+    g.setFont (juce::FontOptions (10.0f));
+    g.drawText ("v" JucePlugin_VersionString, margin + 268, 20, 60, 16, juce::Justification::centredLeft);
+   #endif
 
     if (carModeButton.getToggleState())
     {

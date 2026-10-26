@@ -185,6 +185,15 @@ void DDRAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     const float outTarget = dbToGain (raw.output->load());
     const bool  mono = raw.mono->load() > 0.5f;
     const float musicOn = s.noiseOnly ? 0.0f : 1.0f;
+
+    // The car "parks" when the transport stops: the noise fades out instead of droning on.
+    // Without transport information (standalone, some hosts) it keeps running.
+    bool playing = true;
+    if (auto* head = getPlayHead())
+        if (auto pos = head->getPosition())
+            playing = pos->getIsPlaying();
+    const float noiseTarget = playing ? 1.0f : 0.0f;
+    const float noiseStep = (float) (1.0 / (0.25 * sr));
     const float smooth = 0.9995f;
 
     float* dl = dry.getWritePointer (0);  float* dr = dry.getWritePointer (1);
@@ -201,7 +210,9 @@ void DDRAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
                                        : juce::jmax (carTarget, carMix - carMixStep);
 
         const float ml = wl[i] * matchGain, mr = wr[i] * matchGain;
-        const float xl = nl[i] * matchGain, xr = nr[i] * matchGain;
+        noiseFade = noiseTarget > noiseFade ? juce::jmin (noiseTarget, noiseFade + noiseStep)
+                                            : juce::jmax (noiseTarget, noiseFade - noiseStep);
+        const float xl = nl[i] * matchGain * noiseFade, xr = nr[i] * matchGain * noiseFade;
 
         // meters (mono sums)
         const float mm = 0.5f * (ml + mr), nm = 0.5f * (xl + xr);

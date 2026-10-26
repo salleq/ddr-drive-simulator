@@ -55,6 +55,7 @@ private:
     double inPower = 0.0, wetPower = 0.0, powerCoef = 0.0;
     float matchGain = 1.0f, matchTarget = 1.0f;
     float carMix = 1.0f, carMixStep = 0.0f;
+    float noiseFade = 1.0f;
     float outGain = 1.0f;
 
     std::array<ddr::Biquad, 4> musicBands, noiseBands; // low, mid(hp), mid(lp), high
