@@ -1,0 +1,89 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            os: macos-14
+            pluginval_url: https://github.com/Tracktion/pluginval/releases/download/v1.0.4/pluginval_macOS.zip
+            pluginval_bin: pluginval.app/Contents/MacOS/pluginval
+          - name: Windows
+            os: windows-2022
+            pluginval_url: https://github.com/Tracktion/pluginval/releases/download/v1.0.4/pluginval_Windows.zip
+            pluginval_bin: pluginval.exe
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release --target DDR_VST3 --parallel 4
+
+      - name: Find the plugin
+        id: plugin
+        shell: bash
+        run: |
+          path=$(find build -type d -name "DDR Drive Simulator.vst3" -path "*Release*" | head -1)
+          echo "Found: $path"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+
+      - name: Ad-hoc sign (macOS)
+        if: runner.os == 'macOS'
+        run: codesign --force --deep --sign - "${{ steps.plugin.outputs.path }}"
+
+      - name: Validate with pluginval
+        shell: bash
+        run: |
+          curl -sSL -o pluginval.zip "${{ matrix.pluginval_url }}"
+          unzip -q pluginval.zip
+          ./${{ matrix.pluginval_bin }} --strictness-level 5 --validate-in-process --skip-gui-tests \
+            --timeout-ms 300000 --validate "${{ steps.plugin.outputs.path }}"
+
+      - name: Package
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp -R "${{ steps.plugin.outputs.path }}" dist/
+          cp docs/INSTALL.txt dist/
+          cd dist
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            zip -qry "../DDR-${{ matrix.name }}.zip" .
+          else
+            7z a -tzip "../DDR-${{ matrix.name }}.zip" . > /dev/null
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DDR-${{ matrix.name }}
+          path: DDR-${{ matrix.name }}.zip
+
+  release:
+    name: Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*.zip
+          generate_release_notes: true

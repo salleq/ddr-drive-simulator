@@ -1,0 +1,516 @@
+#include "PluginEditor.h"
+
+using namespace ddr;
+
+namespace
+{
+    constexpr int editorWidth    = 880;
+    constexpr int basicHeight    = 430;
+    constexpr int advancedHeight = 712;
+    constexpr int margin         = 16;
+
+    const char* carDescriptions[] {
+        "Newer family estate. Door woofers, tweeters in the A-pillars and a long, boomy rear.",
+        "Mid-size hatchback with the basic 4-6 speaker system most people have.",
+        "Fifteen years old. Tired speaker cones, more engine and wind noise.",
+        "Small and loud. Little real bass, a strong boom and lots of road noise.",
+        "Big, tall cabin. Lower boom and more wind noise at speed.",
+        "The reference: subwoofer, DSP and a quiet cabin. Your mix should shine here."
+    };
+
+    const char* roadDescriptions[] {
+        "New, smooth asphalt. A low, even hum from the tyres.",
+        "Worn, coarse asphalt. The classic motorway roar.",
+        "Winter tyres with studs. A hissing, rattling top end on top of the roar.",
+        "Gravel road. Heavy rumble and stones hitting the wheel arches.",
+        "Wet road. Spray hiss from the tyres all the way up the spectrum."
+    };
+
+    void drawPanel (juce::Graphics& g, juce::Rectangle<int> r, const juce::String& title)
+    {
+        g.setColour (Colours::panel);
+        g.fillRoundedRectangle (r.toFloat(), 10.0f);
+        g.setColour (Colours::panelEdge);
+        g.drawRoundedRectangle (r.toFloat().reduced (0.5f), 10.0f, 1.0f);
+        g.setColour (Colours::dim);
+        g.setFont (juce::FontOptions (12.0f, juce::Font::bold));
+        g.drawText (title, r.reduced (14, 8).removeFromTop (16), juce::Justification::centredLeft);
+    }
+}
+
+//==============================================================================
+DashLookAndFeel::DashLookAndFeel()
+{
+    setColour (juce::ComboBox::backgroundColourId, Colours::background);
+    setColour (juce::ComboBox::textColourId, Colours::text);
+    setColour (juce::ComboBox::outlineColourId, Colours::panelEdge);
+    setColour (juce::ComboBox::arrowColourId, Colours::accent);
+    setColour (juce::PopupMenu::backgroundColourId, Colours::panel);
+    setColour (juce::PopupMenu::textColourId, Colours::text);
+    setColour (juce::PopupMenu::highlightedBackgroundColourId, Colours::accent);
+    setColour (juce::PopupMenu::highlightedTextColourId, Colours::background);
+    setColour (juce::Label::textColourId, Colours::text);
+    setColour (juce::Slider::textBoxTextColourId, Colours::text);
+    setColour (juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
+    setColour (juce::TextButton::textColourOffId, Colours::dim);
+    setColour (juce::TextButton::textColourOnId, Colours::background);
+}
+
+void DashLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int w, int h, float pos,
+                                        float startAngle, float endAngle, juce::Slider& slider)
+{
+    const bool speedo = slider.getName() == "speed";
+    auto bounds = juce::Rectangle<int> (x, y, w, h).toFloat().reduced (speedo ? 10.0f : 4.0f);
+    const float radius = juce::jmin (bounds.getWidth(), bounds.getHeight()) * 0.5f;
+    const auto centre = bounds.getCentre();
+    const float track = speedo ? 9.0f : 4.0f;
+    const float arcRadius = radius - track * 0.5f;
+    const float angle = startAngle + pos * (endAngle - startAngle);
+
+    juce::Path bg;
+    bg.addCentredArc (centre.x, centre.y, arcRadius, arcRadius, 0.0f, startAngle, endAngle, true);
+    g.setColour (Colours::panelEdge);
+    g.strokePath (bg, juce::PathStrokeType (track, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+
+    juce::Path value;
+    value.addCentredArc (centre.x, centre.y, arcRadius, arcRadius, 0.0f, startAngle, angle, true);
+    g.setColour (Colours::accent);
+    g.strokePath (value, juce::PathStrokeType (track, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+
+    if (speedo)
+    {
+        // speedometer ticks and numbers every 20 km/h
+        const double maxV = slider.getMaximum();
+        for (int kmh = 0; kmh <= (int) maxV; kmh += 10)
+        {
+            const float a = startAngle + (float) (kmh / maxV) * (endAngle - startAngle);
+            const bool major = kmh % 20 == 0;
+            const float r1 = arcRadius - track - 4.0f, r2 = r1 - (major ? 12.0f : 6.0f);
+            const auto p1 = centre.getPointOnCircumference (r1, a), p2 = centre.getPointOnCircumference (r2, a);
+            g.setColour (major ? Colours::text : Colours::dim);
+            g.drawLine ({ p1, p2 }, major ? 2.0f : 1.0f);
+            if (major)
+            {
+                const auto tp = centre.getPointOnCircumference (r2 - 14.0f, a);
+                g.setFont (juce::FontOptions (12.0f));
+                g.drawText (juce::String (kmh), juce::Rectangle<float> (30.0f, 16.0f).withCentre (tp), juce::Justification::centred);
+            }
+        }
+
+        // needle
+        const auto tip = centre.getPointOnCircumference (arcRadius - track - 8.0f, angle);
+        g.setColour (Colours::accent);
+        g.drawLine ({ centre, tip }, 3.0f);
+        g.fillEllipse (juce::Rectangle<float> (14.0f, 14.0f).withCentre (centre));
+
+        g.setColour (Colours::text);
+        g.setFont (juce::FontOptions (34.0f, juce::Font::bold));
+        const auto readout = juce::Rectangle<float> (100.0f, 36.0f).withCentre (centre.translated (0.0f, radius * 0.74f));
+        g.drawText (juce::String (juce::roundToInt (slider.getValue())), readout, juce::Justification::centred);
+        g.setColour (Colours::dim);
+        g.setFont (juce::FontOptions (12.0f));
+        g.drawText ("km/h", readout.translated (0.0f, 26.0f), juce::Justification::centred);
+        return;
+    }
+
+    // small knob pointer
+    const auto p1 = centre.getPointOnCircumference (arcRadius * 0.25f, angle);
+    const auto p2 = centre.getPointOnCircumference (arcRadius - track - 2.0f, angle);
+    g.setColour (Colours::text);
+    g.drawLine ({ p1, p2 }, 2.0f);
+}
+
+void DashLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Button& b, const juce::Colour&, bool over, bool)
+{
+    auto r = b.getLocalBounds().toFloat().reduced (1.0f);
+    const bool on = b.getToggleState();
+    g.setColour (on ? Colours::accent : Colours::background);
+    g.fillRoundedRectangle (r, r.getHeight() * 0.5f);
+    g.setColour (on ? Colours::accent : (over ? Colours::dim : Colours::panelEdge));
+    g.drawRoundedRectangle (r, r.getHeight() * 0.5f, 1.0f);
+}
+
+void DashLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton& b, bool, bool)
+{
+    g.setColour (b.getToggleState() ? Colours::background : Colours::text);
+    g.setFont (getTextButtonFont (b, b.getHeight()));
+    g.drawText (b.getButtonText(), b.getLocalBounds(), juce::Justification::centred);
+}
+
+juce::Font DashLookAndFeel::getTextButtonFont (juce::TextButton&, int buttonHeight)
+{
+    return juce::FontOptions (juce::jmin (13.0f, buttonHeight * 0.48f), juce::Font::bold);
+}
+
+void DashLookAndFeel::drawComboBox (juce::Graphics& g, int w, int h, bool, int, int, int, int, juce::ComboBox&)
+{
+    auto r = juce::Rectangle<int> (w, h).toFloat().reduced (0.5f);
+    g.setColour (Colours::background);
+    g.fillRoundedRectangle (r, 6.0f);
+    g.setColour (Colours::panelEdge);
+    g.drawRoundedRectangle (r, 6.0f, 1.0f);
+
+    juce::Path arrow;
+    const float ax = (float) w - 18.0f, ay = (float) h * 0.5f;
+    arrow.addTriangle (ax - 5.0f, ay - 3.0f, ax + 5.0f, ay - 3.0f, ax, ay + 3.5f);
+    g.setColour (Colours::accent);
+    g.fillPath (arrow);
+}
+
+juce::Font DashLookAndFeel::getComboBoxFont (juce::ComboBox& box)
+{
+    return juce::FontOptions (juce::jmin (17.0f, box.getHeight() * 0.45f));
+}
+
+void DashLookAndFeel::positionComboBoxText (juce::ComboBox& box, juce::Label& label)
+{
+    label.setBounds (10, 1, box.getWidth() - 34, box.getHeight() - 2);
+    label.setFont (getComboBoxFont (box));
+}
+
+juce::Label* DashLookAndFeel::createSliderTextBox (juce::Slider& s)
+{
+    auto* l = LookAndFeel_V4::createSliderTextBox (s);
+    l->setColour (juce::Label::backgroundColourId, juce::Colours::transparentBlack);
+    l->setColour (juce::Label::outlineColourId, juce::Colours::transparentBlack);
+    l->setFont (juce::FontOptions (12.0f));
+    return l;
+}
+
+//==============================================================================
+Knob::Knob (juce::AudioProcessorValueTreeState& state, const char* paramId, const juce::String& caption, bool big)
+{
+    slider.setName (paramId);
+    slider.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
+    slider.setTextBoxStyle (big ? juce::Slider::NoTextBox : juce::Slider::TextBoxBelow, false, 80, 18);
+    slider.setRotaryParameters (juce::MathConstants<float>::pi * 1.25f, juce::MathConstants<float>::pi * 2.75f, true);
+    slider.setColour (juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
+    addAndMakeVisible (slider);
+
+    label.setText (caption, juce::dontSendNotification);
+    label.setJustificationType (juce::Justification::centred);
+    label.setFont (juce::FontOptions (big ? 13.0f : 12.0f, juce::Font::bold));
+    label.setColour (juce::Label::textColourId, Colours::dim);
+    addAndMakeVisible (label);
+
+    attachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (state, paramId, slider);
+}
+
+void Knob::resized()
+{
+    auto r = getLocalBounds();
+    label.setBounds (r.removeFromTop (16));
+    slider.setBounds (r);
+}
+
+Choice::Choice (juce::AudioProcessorValueTreeState& state, const char* paramId, const juce::String& caption)
+{
+    if (auto* p = dynamic_cast<juce::AudioParameterChoice*> (state.getParameter (paramId)))
+        box.addItemList (p->choices, 1);
+    addAndMakeVisible (box);
+
+    label.setText (caption, juce::dontSendNotification);
+    label.setFont (juce::FontOptions (12.0f, juce::Font::bold));
+    label.setColour (juce::Label::textColourId, Colours::dim);
+    addAndMakeVisible (label);
+
+    attachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (state, paramId, box);
+}
+
+void Choice::resized()
+{
+    auto r = getLocalBounds();
+    label.setBounds (r.removeFromTop (18));
+    box.setBounds (r.removeFromTop (juce::jmin (r.getHeight(), 40)));
+}
+
+Toggle::Toggle (juce::AudioProcessorValueTreeState& state, const char* paramId, const juce::String& text)
+{
+    button.setButtonText (text);
+    button.setClickingTogglesState (true);
+    addAndMakeVisible (button);
+    attachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (state, paramId, button);
+}
+
+//==============================================================================
+void MaskingMeter::paint (juce::Graphics& g)
+{
+    static const char* names[] { "LOW  < 250 Hz", "MID  250 Hz - 4 kHz", "HIGH  > 4 kHz" };
+    constexpr float floorDb = -60.0f;
+
+    auto r = getLocalBounds();
+    const int rowH = r.getHeight() / 3;
+
+    for (int b = 0; b < 3; ++b)
+    {
+        auto row = r.removeFromTop (rowH).reduced (0, 3);
+        const float m = processor.meters[(size_t) b].music.load();
+        const float n = processor.meters[(size_t) b].noise.load();
+
+        g.setColour (Colours::dim);
+        g.setFont (juce::FontOptions (12.0f, juce::Font::bold));
+        g.drawText (names[b], row.removeFromLeft (150), juce::Justification::centredLeft);
+
+        auto status = row.removeFromRight (110);
+        auto bars = row.reduced (8, 0);
+
+        auto widthFor = [&] (float db) { return juce::jlimit (0.0f, 1.0f, (db - floorDb) / -floorDb) * (float) bars.getWidth(); };
+        auto musicBar = bars.removeFromTop (bars.getHeight() / 2).toFloat().reduced (0.0f, 1.5f);
+        auto noiseBar = bars.toFloat().reduced (0.0f, 1.5f);
+
+        g.setColour (Colours::background);
+        g.fillRoundedRectangle (musicBar, 3.0f);
+        g.fillRoundedRectangle (noiseBar, 3.0f);
+        g.setColour (Colours::accent);
+        g.fillRoundedRectangle (musicBar.withWidth (widthFor (m)), 3.0f);
+        g.setColour (Colours::noise);
+        g.fillRoundedRectangle (noiseBar.withWidth (widthFor (n)), 3.0f);
+
+        juce::String word = "-";
+        auto colour = Colours::dim;
+        if (m > -80.0f)
+        {
+            const float diff = m - n;
+            // The meter compares the whole mix with the noise. Single parts of the mix are
+            // quieter than the whole, so they need a good margin to stay audible.
+            if (diff >= 12.0f)     { word = "CLEAR";    colour = Colours::good; }
+            else if (diff >= 3.0f) { word = "FIGHTING"; colour = Colours::warn; }
+            else                   { word = "MASKED";   colour = Colours::bad; }
+        }
+        g.setColour (colour);
+        g.setFont (juce::FontOptions (13.0f, juce::Font::bold));
+        g.drawText (word, status, juce::Justification::centredRight);
+    }
+}
+
+//==============================================================================
+DDRAudioProcessorEditor::DDRAudioProcessorEditor (DDRAudioProcessor& p)
+    : AudioProcessorEditor (&p), processor (p),
+      car (p.apvts, ParamID::car, "CAR TYPE"),
+      road (p.apvts, ParamID::road, "ROAD"),
+      speed (p.apvts, ParamID::speed, "SPEED", true),
+      output (p.apvts, ParamID::output, "OUTPUT"),
+      mono (p.apvts, ParamID::mono, "MONO"),
+      levelMatch (p.apvts, ParamID::levelMatch, "LEVEL MATCH"),
+      meter (p),
+      engine (p.apvts, ParamID::engine, "ENGINE"),
+      fan (p.apvts, ParamID::fan, "FAN"),
+      noiseAmount (p.apvts, ParamID::noiseAmount, "NOISE"),
+      window (p.apvts, ParamID::window, "WINDOW"),
+      noiseOnly (p.apvts, ParamID::noiseOnly, "NOISE ONLY"),
+      boom (p.apvts, ParamID::boom, "BOOM"),
+      resonance (p.apvts, ParamID::resonance, "RESONANCE"),
+      reflections (p.apvts, ParamID::reflections, "REFLECT."),
+      seat (p.apvts, ParamID::seat, "SEAT"),
+      rhd (p.apvts, ParamID::rhd, "RIGHT-HAND DRIVE"),
+      lowCut (p.apvts, ParamID::lowCut, "LOW CUT"),
+      distortion (p.apvts, ParamID::distortion, "DISTORTION"),
+      source (p.apvts, ParamID::source, "SOURCE"),
+      worn (p.apvts, ParamID::worn, "WORN SPEAKERS"),
+      volume (p.apvts, ParamID::volume, "VOLUME"),
+      bass (p.apvts, ParamID::bass, "BASS"),
+      treble (p.apvts, ParamID::treble, "TREBLE"),
+      svc (p.apvts, ParamID::svc, "SPEED VOLUME"),
+      loudness (p.apvts, ParamID::loudness, "LOUDNESS"),
+      limiter (p.apvts, ParamID::limiter, "LIMITER")
+{
+    setLookAndFeel (&lnf);
+
+    for (auto* b : { &basicButton, &advancedButton })
+    {
+        b->setClickingTogglesState (false);
+        addAndMakeVisible (*b);
+    }
+    basicButton.onClick    = [this] { setAdvanced (false); };
+    advancedButton.onClick = [this] { setAdvanced (true); };
+
+    carModeButton.setClickingTogglesState (true);
+    carModeButton.onStateChange = [this] { updateCarModeButton(); };
+    carModeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (p.apvts, ParamID::carMode, carModeButton);
+    addAndMakeVisible (carModeButton);
+    updateCarModeButton();
+
+    situationBox.setTextWhenNothingSelected ("Situation...");
+    int id = 1;
+    for (auto& s : situations())
+        situationBox.addItem (s.name, id++);
+    situationBox.setSelectedId (p.getCurrentProgram() + 1, juce::dontSendNotification);
+    situationBox.onChange = [this]
+    {
+        if (situationBox.getSelectedId() > 0)
+            processor.setCurrentProgram (situationBox.getSelectedId() - 1);
+    };
+    addAndMakeVisible (situationBox);
+
+    carDescription.setFont (juce::FontOptions (13.0f));
+    carDescription.setColour (juce::Label::textColourId, Colours::dim);
+    carDescription.setJustificationType (juce::Justification::topLeft);
+    carDescription.setMinimumHorizontalScale (1.0f);
+    roadDescription.setFont (juce::FontOptions (13.0f));
+    roadDescription.setColour (juce::Label::textColourId, Colours::dim);
+    roadDescription.setJustificationType (juce::Justification::topLeft);
+    roadDescription.setMinimumHorizontalScale (1.0f);
+
+    for (juce::Component* c : std::initializer_list<juce::Component*> {
+             &car, &road, &speed, &output, &mono, &levelMatch, &carDescription, &roadDescription, &meter,
+             &engine, &fan, &noiseAmount, &window, &noiseOnly,
+             &boom, &resonance, &reflections, &seat, &rhd,
+             &lowCut, &distortion, &source, &worn,
+             &volume, &bass, &treble, &svc, &loudness, &limiter })
+        addAndMakeVisible (c);
+
+    advanced = (bool) p.apvts.state.getProperty ("advanced", false);
+    setAdvanced (advanced);
+    timerCallback();
+    startTimerHz (30);
+}
+
+DDRAudioProcessorEditor::~DDRAudioProcessorEditor()
+{
+    setLookAndFeel (nullptr);
+}
+
+void DDRAudioProcessorEditor::updateCarModeButton()
+{
+    carModeButton.setButtonText (carModeButton.getToggleState() ? "CAR" : "STUDIO");
+}
+
+void DDRAudioProcessorEditor::setAdvanced (bool shouldBeAdvanced)
+{
+    advanced = shouldBeAdvanced;
+    processor.apvts.state.setProperty ("advanced", advanced, nullptr);
+    basicButton.setToggleState (! advanced, juce::dontSendNotification);
+    advancedButton.setToggleState (advanced, juce::dontSendNotification);
+
+    for (juce::Component* c : std::initializer_list<juce::Component*> {
+             &engine, &fan, &noiseAmount, &window, &noiseOnly,
+             &boom, &resonance, &reflections, &seat, &rhd,
+             &lowCut, &distortion, &source, &worn,
+             &volume, &bass, &treble, &svc, &loudness, &limiter })
+        c->setVisible (advanced);
+
+    setSize (editorWidth, advanced ? advancedHeight : basicHeight);
+    resized();
+    repaint();
+}
+
+void DDRAudioProcessorEditor::timerCallback()
+{
+    const int carIndex = juce::jlimit (0, 5, car.box.getSelectedItemIndex());
+    carDescription.setText (carDescriptions[carIndex], juce::dontSendNotification);
+    const int roadIndex = juce::jlimit (0, 4, road.box.getSelectedItemIndex());
+    roadDescription.setText (roadDescriptions[roadIndex], juce::dontSendNotification);
+    meter.repaint();
+}
+
+void DDRAudioProcessorEditor::paint (juce::Graphics& g)
+{
+    g.fillAll (Colours::background);
+
+    g.setColour (Colours::accent);
+    g.setFont (juce::FontOptions (32.0f, juce::Font::bold));
+    g.drawText ("DDR", margin, 12, 90, 40, juce::Justification::centredLeft);
+    g.setColour (Colours::dim);
+    g.setFont (juce::FontOptions (12.0f, juce::Font::bold));
+    g.drawText ("(DREADED) DRIVE SIMULATOR", margin + 84, 26, 220, 16, juce::Justification::centredLeft);
+
+    drawPanel (g, basicPanel, "THE DRIVE");
+    drawPanel (g, meterPanel, "CAN YOU STILL HEAR IT?  music vs. noise");
+
+    if (advanced)
+    {
+        static const char* titles[] { "DRIVING & NOISE", "CABIN & SEAT", "SPEAKERS", "HEAD UNIT" };
+        for (size_t i = 0; i < groupPanels.size(); ++i)
+            drawPanel (g, groupPanels[i], titles[i]);
+    }
+}
+
+void DDRAudioProcessorEditor::resized()
+{
+    auto area = getLocalBounds().reduced (margin, 0);
+
+    // header
+    auto header = area.removeFromTop (64).withTrimmedTop (14).withTrimmedBottom (10);
+    carModeButton.setBounds (header.removeFromRight (120));
+    header.removeFromRight (12);
+    situationBox.setBounds (header.removeFromRight (170).reduced (0, 2));
+    header.removeFromRight (12);
+    advancedButton.setBounds (header.removeFromRight (104));
+    header.removeFromRight (6);
+    basicButton.setBounds (header.removeFromRight (80));
+
+    // the drive: car, speed, road, output
+    basicPanel = area.removeFromTop (232);
+    auto inner = basicPanel.reduced (14, 10).withTrimmedTop (22);
+
+    auto carCol = inner.removeFromLeft (250);
+    car.setBounds (carCol.removeFromTop (60));
+    carCol.removeFromTop (10);
+    carDescription.setBounds (carCol.removeFromTop (70));
+
+    inner.removeFromLeft (16);
+    auto outCol = inner.removeFromRight (130);
+    output.setBounds (outCol.removeFromTop (118));
+    outCol.removeFromTop (8);
+    mono.setBounds (outCol.removeFromTop (28));
+    outCol.removeFromTop (8);
+    levelMatch.setBounds (outCol.removeFromTop (28));
+
+    inner.removeFromRight (16);
+    auto roadCol = inner.removeFromRight (200);
+    road.setBounds (roadCol.removeFromTop (60));
+    roadCol.removeFromTop (10);
+    roadDescription.setBounds (roadCol.removeFromTop (70));
+
+    speed.setBounds (inner.withSizeKeepingCentre (juce::jmin (inner.getWidth(), 230), inner.getHeight() + 10).translated (0, -6));
+
+    area.removeFromTop (10);
+
+    // advanced groups
+    if (advanced)
+    {
+        auto groups = area.removeFromTop (270);
+        const int gw = (groups.getWidth() - 3 * 10) / 4;
+        for (size_t i = 0; i < groupPanels.size(); ++i)
+        {
+            groupPanels[i] = groups.removeFromLeft (gw);
+            groups.removeFromLeft (10);
+        }
+
+        auto layoutGroup = [] (juce::Rectangle<int> panel, std::initializer_list<Knob*> knobs,
+                               Choice* choice, std::initializer_list<Toggle*> toggles)
+        {
+            auto r = panel.reduced (12, 10).withTrimmedTop (24);
+            auto knobRow = r.removeFromTop (96);
+            const int kw = knobRow.getWidth() / 3;
+            if (knobs.size() == 2)
+                knobRow = knobRow.withSizeKeepingCentre (kw * 2, knobRow.getHeight());
+            for (auto* k : knobs)
+                k->setBounds (knobRow.removeFromLeft (kw));
+            r.removeFromTop (8);
+            choice->setBounds (r.removeFromTop (58));
+            r.removeFromTop (12);
+            auto toggleRow = r.removeFromTop (28);
+            if (toggles.size() == 1)
+                (*toggles.begin())->setBounds (toggleRow);
+            else
+            {
+                const int tw = (toggleRow.getWidth() - 8) / 2;
+                auto it = toggles.begin();
+                (*it)->setBounds (toggleRow.removeFromLeft (tw));
+                toggleRow.removeFromLeft (8);
+                (*++it)->setBounds (toggleRow);
+            }
+        };
+
+        layoutGroup (groupPanels[0], { &fan, &noiseAmount }, &engine, { &window, &noiseOnly });
+        layoutGroup (groupPanels[1], { &boom, &resonance, &reflections }, &seat, { &rhd });
+        layoutGroup (groupPanels[2], { &lowCut, &distortion }, &source, { &worn });
+        layoutGroup (groupPanels[3], { &volume, &bass, &treble }, &svc, { &loudness, &limiter });
+
+        area.removeFromTop (10);
+    }
+
+    meterPanel = area.removeFromTop (110);
+    meter.setBounds (meterPanel.reduced (14, 8).withTrimmedTop (22));
+}

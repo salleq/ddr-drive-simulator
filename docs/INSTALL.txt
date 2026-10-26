@@ -1,0 +1,26 @@
+DDR - (Dreaded) Drive Simulator
+================================
+
+Free VST3 plugin that lets you hear your mix the way it sounds in a stock family car.
+
+INSTALL ON WINDOWS
+1. Copy the folder "DDR Drive Simulator.vst3" to:
+   C:\Program Files\Common Files\VST3
+2. Rescan plugins in your DAW.
+
+INSTALL ON macOS
+1. Copy "DDR Drive Simulator.vst3" to:
+   /Library/Audio/Plug-Ins/VST3      (all users)
+   or ~/Library/Audio/Plug-Ins/VST3  (just you)
+2. The plugin is not notarized by Apple, so macOS blocks it at first.
+   Open Terminal and run (all on one line):
+   xattr -dr com.apple.quarantine "/Library/Audio/Plug-Ins/VST3/DDR Drive Simulator.vst3"
+   (change the path if you used your own Library folder)
+3. Rescan plugins in your DAW.
+
+HOW TO USE
+Put DDR as the LAST plugin on your master bus. Pick a car, a speed and a road.
+Press CAR / STUDIO to compare. Remember to switch it off (or bypass it) before you bounce!
+
+Source code and updates: https://github.com/salleq/ddr-drive-simulator
+License: GNU AGPL v3

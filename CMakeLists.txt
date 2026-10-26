@@ -45,7 +45,7 @@ target_sources(DDR PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
     Source/Parameters.cpp
-    Source/dsp/CarEngine.cpp
+    Source/dsp/MusicChain.cpp
     Source/dsp/NoiseGenerator.cpp)
 
 target_include_directories(DDR PRIVATE Source)
@@ -64,3 +64,22 @@ target_link_libraries(DDR
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags)
+
+# Optional developer tool: renders the editor to PNG files (used for screenshots in the README)
+option(DDR_BUILD_TOOLS "Build the screenshot tool" OFF)
+if(DDR_BUILD_TOOLS)
+    juce_add_console_app(ddr_snapshot PRODUCT_NAME "ddr_snapshot")
+    target_sources(ddr_snapshot PRIVATE
+        tools/Snapshot.cpp
+        Source/PluginProcessor.cpp
+        Source/PluginEditor.cpp
+        Source/Parameters.cpp
+        Source/dsp/MusicChain.cpp
+        Source/dsp/NoiseGenerator.cpp)
+    target_include_directories(ddr_snapshot PRIVATE Source)
+    target_compile_definitions(ddr_snapshot PRIVATE
+        JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JucePlugin_Name="DDR")
+    target_link_libraries(ddr_snapshot PRIVATE
+        juce::juce_audio_utils juce::juce_dsp
+        juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+endif()
