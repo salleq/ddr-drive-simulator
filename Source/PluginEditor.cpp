@@ -1,4 +1,5 @@
 #include "PluginEditor.h"
+#include "BinaryData.h"
 
 using namespace ddr;
 
@@ -26,11 +27,12 @@ namespace
         "Wet road. Spray hiss from the tyres all the way up the spectrum."
     };
 
-    void drawPanel (juce::Graphics& g, juce::Rectangle<int> r, const juce::String& title)
+    void drawPanel (juce::Graphics& g, juce::Rectangle<int> r, const juce::String& title, bool retro)
     {
-        g.setColour (Colours::panel);
+        // On the Retro skin the panels are see-through glass with a neon edge
+        g.setColour (retro ? Colours::panel.withAlpha (0.66f) : Colours::panel);
         g.fillRoundedRectangle (r.toFloat(), 10.0f);
-        g.setColour (Colours::panelEdge);
+        g.setColour (retro ? juce::Colour (0xffff4fd8).withAlpha (0.5f) : Colours::panelEdge);
         g.drawRoundedRectangle (r.toFloat().reduced (0.5f), 10.0f, 1.0f);
         g.setColour (Colours::dim);
         g.setFont (juce::FontOptions (12.0f, juce::Font::bold));
@@ -376,6 +378,18 @@ DDRPanel::DDRPanel (DDRAudioProcessor& p)
     };
     addAndMakeVisible (zoomBox);
 
+    background = juce::Drawable::createFromImageData (BinaryData::background_svg, BinaryData::background_svgSize);
+    skinBox.addItem ("Retro skin", 1);
+    skinBox.addItem ("Plain skin", 2);
+    skinBox.setSelectedId ((int) p.apvts.state.getProperty ("skin", 0) + 1, juce::dontSendNotification);
+    skinBox.setTooltip ("Retro: night drive artwork behind the controls. Plain: no picture.");
+    skinBox.onChange = [this]
+    {
+        processor.apvts.state.setProperty ("skin", skinBox.getSelectedId() - 1, nullptr);
+        repaint();
+    };
+    addAndMakeVisible (skinBox);
+
     carDescription.setFont (juce::FontOptions (13.0f));
     carDescription.setColour (juce::Label::textColourId, Colours::dim);
     carDescription.setJustificationType (juce::Justification::topLeft);
@@ -494,6 +508,34 @@ void DDRPanel::paint (juce::Graphics& g)
 {
     g.fillAll (Colours::background);
 
+    const bool retro = isRetroSkin();
+    if (retro)
+    {
+        const int w = getWidth(), h = getHeight();
+        if (backgroundImage.getWidth() != w * 2 || backgroundImage.getHeight() != h * 2)
+        {
+            // Render the vector artwork once per size, at 2x so it stays sharp when zoomed
+            backgroundImage = juce::Image (juce::Image::RGB, w * 2, h * 2, true);
+            juce::Graphics ig (backgroundImage);
+            ig.addTransform (juce::AffineTransform::scale (2.0f));
+            if (background != nullptr)
+            {
+                // the artwork is drawn in an 880 x 712 canvas; parts of the road run past its edges
+                const juce::Rectangle<float> artwork (0.0f, 0.0f, 880.0f, 712.0f);
+                const juce::RectanglePlacement cover (juce::RectanglePlacement::xMid | juce::RectanglePlacement::yMid
+                                                      | juce::RectanglePlacement::fillDestination);
+                ig.reduceClipRegion (getLocalBounds());
+                background->draw (ig, 1.0f, cover.getTransformToFit (artwork, getLocalBounds().toFloat()));
+            }
+        }
+        g.drawImage (backgroundImage, getLocalBounds().toFloat());
+
+        // darken behind the header so the title stays readable over the sunset
+        g.setGradientFill (juce::ColourGradient (juce::Colours::black.withAlpha (0.85f), 0.0f, 0.0f,
+                                                 juce::Colours::black.withAlpha (0.0f), 0.0f, 110.0f, false));
+        g.fillRect (0, 0, w, 110);
+    }
+
     g.setColour (Colours::accent);
     g.setFont (juce::FontOptions (32.0f, juce::Font::bold));
     g.drawText ("DDR", margin, 12, 90, 40, juce::Justification::centredLeft);
@@ -508,14 +550,14 @@ void DDRPanel::paint (juce::Graphics& g)
         g.drawText ("Car mode is on. Bypass DDR before you bounce!", margin + 84, 36, 300, 14, juce::Justification::centredLeft);
     }
 
-    drawPanel (g, basicPanel, "THE DRIVE");
-    drawPanel (g, meterPanel, "CAN YOU STILL HEAR IT?  music vs. noise");
+    drawPanel (g, basicPanel, "THE DRIVE", retro);
+    drawPanel (g, meterPanel, "CAN YOU STILL HEAR IT?  music vs. noise", retro);
 
     if (advanced)
     {
         static const char* titles[] { "DRIVING & NOISE", "CABIN & SEAT", "SPEAKERS", "HEAD UNIT" };
         for (size_t i = 0; i < groupPanels.size(); ++i)
-            drawPanel (g, groupPanels[i], titles[i]);
+            drawPanel (g, groupPanels[i], titles[i], retro);
     }
 }
 
@@ -608,6 +650,7 @@ void DDRPanel::resized()
     meterPanel = area.removeFromTop (110);
     meter.setBounds (meterPanel.reduced (14, 8).withTrimmedTop (22));
     zoomBox.setBounds (meterPanel.getRight() - 14 - 84, meterPanel.getY() + 6, 84, 22);
+    skinBox.setBounds (zoomBox.getX() - 8 - 110, zoomBox.getY(), 110, 22);
 }
 
 //==============================================================================

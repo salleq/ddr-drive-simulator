@@ -26,6 +26,7 @@ DDR simulates all of these.
 - **CAR / STUDIO** – level-matched A/B switch
 - **Situation** – Parked, City, Motorway, Winter Motorway, Windows Down, Back Seat
 - **Output**, **Mono**, **Level Match**
+- **Skin** – Retro (an 80s night drive behind the controls) or Plain, plus a window size menu (75–150 %)
 - **Can you still hear it?** – shows per band (low / mid / high) if your music is CLEAR, FIGHTING or MASKED by the noise
 
 **Advanced** – everything else:

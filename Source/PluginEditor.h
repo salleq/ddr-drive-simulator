@@ -106,7 +106,10 @@ private:
     juce::TextButton basicButton { "BASIC" }, advancedButton { "ADVANCED" };
     juce::TextButton carModeButton;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> carModeAttachment;
-    juce::ComboBox situationBox, zoomBox;
+    juce::ComboBox situationBox, zoomBox, skinBox;
+    std::unique_ptr<juce::Drawable> background;
+    juce::Image backgroundImage;
+    bool isRetroSkin() const { return skinBox.getSelectedId() != 2; }
 
     // basic strip
     ddr::Choice car, road;

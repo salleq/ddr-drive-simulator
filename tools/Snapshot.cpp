@@ -4,6 +4,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "BinaryData.h"
 
 namespace
 {
@@ -170,6 +171,18 @@ int main (int argc, char* argv[])
     std::printf ("noise only at 100 km/h: %.1f dBFS\n", noiseOnly);
     setParam (processor, ddr::ParamID::noiseOnly, 0.0f);
     runAudio (processor, sr, 200, pos);
+
+    {
+        // the Retro skin artwork on its own, as JUCE renders it
+        auto bg = juce::Drawable::createFromImageData (BinaryData::background_svg, BinaryData::background_svgSize);
+        juce::Image img (juce::Image::RGB, 880, 712, true);
+        juce::Graphics g (img);
+        bg->draw (g, 1.0f);
+        auto file = outDir.getChildFile ("background.png");
+        file.deleteFile();
+        juce::FileOutputStream stream (file);
+        juce::PNGImageFormat().writeImageToStream (img, stream);
+    }
 
     std::unique_ptr<juce::AudioProcessorEditor> editor (processor.createEditor());
     auto* ddrEditor = dynamic_cast<DDRAudioProcessorEditor*> (editor.get());

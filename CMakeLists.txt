@@ -49,6 +49,10 @@ juce_add_plugin(DDR
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
     COPY_PLUGIN_AFTER_BUILD FALSE)
 
+# The Retro skin's background image, compiled into the plugin
+juce_add_binary_data(DDRAssets SOURCES assets/background.svg)
+set_target_properties(DDRAssets PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 target_sources(DDR PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
@@ -62,10 +66,11 @@ target_compile_definitions(DDR PUBLIC
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
-    JUCE_DISPLAY_SPLASH_SCREEN=0)
+)
 
 target_link_libraries(DDR
     PRIVATE
+        DDRAssets
         juce::juce_audio_utils
         juce::juce_dsp
     PUBLIC
@@ -88,7 +93,7 @@ if(DDR_BUILD_TOOLS)
     target_compile_definitions(ddr_snapshot PRIVATE
         JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JucePlugin_Name="DDR")
     target_link_libraries(ddr_snapshot PRIVATE
-        juce::juce_audio_utils juce::juce_dsp
+        DDRAssets juce::juce_audio_utils juce::juce_dsp
         juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
 
     juce_add_console_app(ddr_analyze PRODUCT_NAME "ddr_analyze")
