@@ -92,7 +92,7 @@ if(DDR_BUILD_TOOLS)
         juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
 
     juce_add_console_app(ddr_analyze PRODUCT_NAME "ddr_analyze")
-    target_sources(ddr_analyze PRIVATE tools/Analyze.cpp Source/Parameters.cpp Source/dsp/MusicChain.cpp)
+    target_sources(ddr_analyze PRIVATE tools/Analyze.cpp Source/Parameters.cpp Source/dsp/MusicChain.cpp Source/dsp/NoiseGenerator.cpp)
     target_include_directories(ddr_analyze PRIVATE Source)
     target_compile_definitions(ddr_analyze PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
     target_link_libraries(ddr_analyze PRIVATE
