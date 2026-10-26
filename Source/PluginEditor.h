@@ -79,11 +79,14 @@ private:
 };
 } // namespace ddr
 
-class DDRAudioProcessorEditor : public juce::AudioProcessorEditor, private juce::Timer
+/** Everything you see, drawn at 100 % size. The editor scales it for the zoom setting. */
+class DDRPanel : public juce::Component, private juce::Timer
 {
 public:
-    explicit DDRAudioProcessorEditor (DDRAudioProcessor&);
-    ~DDRAudioProcessorEditor() override;
+    explicit DDRPanel (DDRAudioProcessor&);
+    ~DDRPanel() override;
+
+    std::function<void()> onSizeChanged, onZoomChanged;
 
     void paint (juce::Graphics&) override;
     void resized() override;
@@ -103,7 +106,7 @@ private:
     juce::TextButton basicButton { "BASIC" }, advancedButton { "ADVANCED" };
     juce::TextButton carModeButton;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> carModeAttachment;
-    juce::ComboBox situationBox;
+    juce::ComboBox situationBox, zoomBox;
 
     // basic strip
     ddr::Choice car, road;
@@ -132,6 +135,24 @@ private:
     bool advanced = false;
     juce::Rectangle<int> basicPanel, meterPanel;
     std::array<juce::Rectangle<int>, 4> groupPanels;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DDRPanel)
+};
+
+class DDRAudioProcessorEditor : public juce::AudioProcessorEditor
+{
+public:
+    explicit DDRAudioProcessorEditor (DDRAudioProcessor&);
+    void resized() override {}
+    void setAdvanced (bool shouldBeAdvanced) { panel.setAdvanced (shouldBeAdvanced); }
+
+    static constexpr float zoomLevels[] { 0.75f, 0.9f, 1.0f, 1.1f, 1.25f, 1.5f };
+
+private:
+    void applyZoom();
+
+    DDRAudioProcessor& processor;
+    DDRPanel panel;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DDRAudioProcessorEditor)
 };

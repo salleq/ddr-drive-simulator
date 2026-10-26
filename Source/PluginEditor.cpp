@@ -287,8 +287,8 @@ void MaskingMeter::paint (juce::Graphics& g)
 }
 
 //==============================================================================
-DDRAudioProcessorEditor::DDRAudioProcessorEditor (DDRAudioProcessor& p)
-    : AudioProcessorEditor (&p), processor (p),
+DDRPanel::DDRPanel (DDRAudioProcessor& p)
+    : processor (p),
       car (p.apvts, ParamID::car, "CAR TYPE"),
       road (p.apvts, ParamID::road, "ROAD"),
       speed (p.apvts, ParamID::speed, "SPEED", true),
@@ -345,6 +345,26 @@ DDRAudioProcessorEditor::DDRAudioProcessorEditor (DDRAudioProcessor& p)
     };
     addAndMakeVisible (situationBox);
 
+    int zoomId = 1;
+    for (auto z : DDRAudioProcessorEditor::zoomLevels)
+        zoomBox.addItem (juce::String (juce::roundToInt (z * 100.0f)) + " %", zoomId++);
+    const float currentZoom = (float) (double) p.apvts.state.getProperty ("zoom", 1.0);
+    for (int i = 0; i < (int) std::size (DDRAudioProcessorEditor::zoomLevels); ++i)
+        if (std::abs (DDRAudioProcessorEditor::zoomLevels[i] - currentZoom) < 0.01f)
+            zoomBox.setSelectedId (i + 1, juce::dontSendNotification);
+    zoomBox.setTooltip ("Window size");
+    zoomBox.onChange = [this]
+    {
+        const int idx = zoomBox.getSelectedId() - 1;
+        if (idx >= 0)
+        {
+            processor.apvts.state.setProperty ("zoom", (double) DDRAudioProcessorEditor::zoomLevels[idx], nullptr);
+            if (onZoomChanged != nullptr)
+                onZoomChanged();
+        }
+    };
+    addAndMakeVisible (zoomBox);
+
     carDescription.setFont (juce::FontOptions (13.0f));
     carDescription.setColour (juce::Label::textColourId, Colours::dim);
     carDescription.setJustificationType (juce::Justification::topLeft);
@@ -398,18 +418,18 @@ DDRAudioProcessorEditor::DDRAudioProcessorEditor (DDRAudioProcessor& p)
     startTimerHz (30);
 }
 
-DDRAudioProcessorEditor::~DDRAudioProcessorEditor()
+DDRPanel::~DDRPanel()
 {
     setLookAndFeel (nullptr);
 }
 
-void DDRAudioProcessorEditor::updateCarModeButton()
+void DDRPanel::updateCarModeButton()
 {
     carModeButton.setButtonText (carModeButton.getToggleState() ? "CAR" : "STUDIO");
     repaint (0, 0, getWidth(), 64);
 }
 
-void DDRAudioProcessorEditor::setAdvanced (bool shouldBeAdvanced)
+void DDRPanel::setAdvanced (bool shouldBeAdvanced)
 {
     advanced = shouldBeAdvanced;
     processor.apvts.state.setProperty ("advanced", advanced, nullptr);
@@ -426,9 +446,11 @@ void DDRAudioProcessorEditor::setAdvanced (bool shouldBeAdvanced)
     setSize (editorWidth, advanced ? advancedHeight : basicHeight);
     resized();
     repaint();
+    if (onSizeChanged != nullptr)
+        onSizeChanged();
 }
 
-void DDRAudioProcessorEditor::timerCallback()
+void DDRPanel::timerCallback()
 {
     const int carIndex = juce::jlimit (0, 5, car.box.getSelectedItemIndex());
     carDescription.setText (carDescriptions[carIndex], juce::dontSendNotification);
@@ -437,7 +459,7 @@ void DDRAudioProcessorEditor::timerCallback()
     meter.repaint();
 }
 
-void DDRAudioProcessorEditor::paint (juce::Graphics& g)
+void DDRPanel::paint (juce::Graphics& g)
 {
     g.fillAll (Colours::background);
 
@@ -466,7 +488,7 @@ void DDRAudioProcessorEditor::paint (juce::Graphics& g)
     }
 }
 
-void DDRAudioProcessorEditor::resized()
+void DDRPanel::resized()
 {
     auto area = getLocalBounds().reduced (margin, 0);
 
@@ -554,4 +576,23 @@ void DDRAudioProcessorEditor::resized()
 
     meterPanel = area.removeFromTop (110);
     meter.setBounds (meterPanel.reduced (14, 8).withTrimmedTop (22));
+    zoomBox.setBounds (meterPanel.getRight() - 14 - 84, meterPanel.getY() + 6, 84, 22);
+}
+
+//==============================================================================
+DDRAudioProcessorEditor::DDRAudioProcessorEditor (DDRAudioProcessor& p)
+    : AudioProcessorEditor (&p), processor (p), panel (p)
+{
+    addAndMakeVisible (panel);
+    panel.onSizeChanged = [this] { applyZoom(); };
+    panel.onZoomChanged = [this] { applyZoom(); };
+    applyZoom();
+}
+
+void DDRAudioProcessorEditor::applyZoom()
+{
+    const float zoom = juce::jlimit (0.5f, 2.0f, (float) (double) processor.apvts.state.getProperty ("zoom", 1.0));
+    panel.setTopLeftPosition (0, 0);
+    panel.setTransform (juce::AffineTransform::scale (zoom));
+    setSize (juce::roundToInt ((float) panel.getWidth() * zoom), juce::roundToInt ((float) panel.getHeight() * zoom));
 }
