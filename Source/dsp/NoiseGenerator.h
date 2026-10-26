@@ -100,6 +100,9 @@ private:
     float wheelbaseDelaySec = 0.0f;
     int nextJointInterval() noexcept;
 
+    float wander = 1.0f, wanderTarget = 1.0f;
+    int   wanderCountdown = 0;
+
     float rampCoef = 0.0f;
     double sr = 44100.0;
 };

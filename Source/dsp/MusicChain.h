@@ -40,6 +40,8 @@ private:
     std::array<Stereo, 4> spkBands;
     Stereo spkLowBand;         // band that the cone distortion acts on
     float  coneK = 1.0f, coneMix = 0.0f;
+    float  rattleAmount = 0.0f, rattleThreshold = 0.22f;
+    Biquad rattleBpL, rattleBpR;
 
     // Cabin and seat
     Stereo cabBoom, cabSeatShelf;

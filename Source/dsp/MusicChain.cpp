@@ -138,6 +138,10 @@ void MusicChain::update (const Settings& s)
     keepState (spkLowBand, [&] (Biquad& b) { b.setLowPass (sr, 250.0, 0.707); });
 
     coneMix = juce::jlimit (0.0f, 1.0f, s.distortion);
+    rattleAmount = 1.5f * s.distortion * car.coneDrive * (worn ? 1.6f : 1.0f);
+    rattleThreshold = 0.22f;
+    rattleBpL.setBandPass (sr, 1900.0, 1.8);
+    rattleBpR.setBandPass (sr, 2300.0, 1.8);
     coneK   = 1.0f + 5.0f * car.coneDrive * s.distortion * (worn ? 1.4f : 1.0f);
 
     // ---- Cabin --------------------------------------------------------------
@@ -256,6 +260,16 @@ void MusicChain::process (float* left, float* right, int n) noexcept
             const float lowL = spkLowBand.l.process (l), lowR = spkLowBand.r.process (r);
             l += coneMix * (std::tanh (coneK * lowL) / coneK - lowL);
             r += coneMix * (std::tanh (coneK * lowR) / coneK - lowR);
+
+            // Door panel rattle: strong bass makes the trim buzz. The buzz follows the
+            // bass waveform above a threshold, coloured like a plastic panel.
+            if (rattleAmount > 0.0f)
+            {
+                const float push = std::max (0.0f, std::abs (lowL + lowR) * 0.5f - rattleThreshold);
+                const float buzz = push * nextNoise();
+                l += rattleAmount * rattleBpL.process (buzz);
+                r += rattleAmount * rattleBpR.process (buzz);
+            }
         }
 
         // Cabin: direct sound from both speakers to the listener, then reflections

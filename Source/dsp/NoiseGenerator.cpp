@@ -249,7 +249,14 @@ void NoiseGenerator::process (float* left, float* right, int n) noexcept
         engineToneGain += (engineToneTarget - engineToneGain) * rampCoef;
 
         // engine tone, shared by both ears
-        rpm = rpmTarget + rpmSmooth * (rpm - rpmTarget);
+        // engines never hold a perfectly steady speed: a slow, small wander of +-0.6 %
+        if (--wanderCountdown <= 0)
+        {
+            wanderCountdown = (int) (sr * 0.2);
+            wanderTarget = 1.0f + 0.006f * ctrlRng.next();
+        }
+        wander += (wanderTarget - wander) * textureCoef;
+        rpm = rpmTarget * wander + rpmSmooth * (rpm - rpmTarget * wander);
         const double firingHz = rpm / 60.0 * 2.0; // four cylinders: two firings per revolution
         phase += twoPi * firingHz / sr;
         if (phase > twoPi) phase -= twoPi;
