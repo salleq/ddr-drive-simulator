@@ -84,6 +84,8 @@ void NoiseGenerator::prepare (double sampleRate)
     sr = sampleRate;
     rampCoef  = 1.0f - (float) std::exp (-1.0 / (0.05 * sr));
     rpmSmooth = (float) std::exp (-1.0 / (0.4 * sr));
+    textureCoef = 1.0f - (float) std::exp (-1.0 / (0.35 * sr));
+    jointDecay  = (float) std::exp (-1.0 / (0.07 * sr));
     ch[0].rng.state = 0x9E3779B9u;
     ch[1].rng.state = 0x7F4A7C15u;
     measureNormalisation();
@@ -102,6 +104,11 @@ void NoiseGenerator::reset()
     rpm = rpmTarget;
     engineToneGain = engineToneTarget;
     roadChanged = false;
+    texture = textureTarget = 1.0f;
+    textureCountdown = 0;
+    jointEnv = 0.0f;
+    jointSecondHit = -1;
+    jointCountdown = nextJointInterval();
 }
 
 /** Runs each noise colour through its filters once so that every component can be
@@ -151,6 +158,12 @@ void NoiseGenerator::measureNormalisation()
     }
 }
 
+int NoiseGenerator::nextJointInterval() noexcept
+{
+    // a joint or patch every 3 to 9 seconds
+    return (int) (sr * (3.0 + 6.0 * (ctrlRng.next() * 0.5 + 0.5)));
+}
+
 void NoiseGenerator::update (const Settings& s)
 {
     if (s.road != road)
@@ -177,6 +190,11 @@ void NoiseGenerator::update (const Settings& s)
     set (hiss,   surf.hissSpl <= silent ? silent : surf.hissSpl + 40.0f * lv + ins, fade);
     set (crackle, surf.gravel ? 70.0f + 20.0f * lv + ins : silent, fade);
     crackleRate = surf.gravel ? (float) (120.0 * (v / 50.0) / sr) : 0.0f;
+
+    // joints only make sense on paved roads at speed
+    jointsEnabled = ! surf.gravel && v > 20.0f;
+    jointGain = jointsEnabled ? splToGain (78.0f + 10.0f * lv + ins) * amt : 0.0f;
+    wheelbaseDelaySec = v > 1.0f ? 2.65f / (v / 3.6f) : 0.0f;
 
     // wind grows very fast with speed; an open window is much louder and buffets
     window = s.window;
@@ -256,6 +274,35 @@ void NoiseGenerator::process (float* left, float* right, int n) noexcept
             whineSample = whine * (float) std::sin (whinePhase);
         }
 
+        // road texture: a new random level every half second, gently smoothed
+        if (--textureCountdown <= 0)
+        {
+            textureCountdown = (int) (sr * 0.5);
+            textureTarget = dbToGain (1.5f * ctrlRng.next());
+        }
+        texture += (textureTarget - texture) * textureCoef;
+
+        // expansion joints: thump from the front axle, then the rear one
+        float thump = 0.0f;
+        if (jointsEnabled)
+        {
+            if (--jointCountdown <= 0)
+            {
+                jointCountdown = nextJointInterval();
+                jointEnv = 1.0f;
+                jointSecondHit = (int) (wheelbaseDelaySec * sr);
+            }
+            if (jointSecondHit >= 0 && jointSecondHit-- == 0)
+                jointEnv = std::max (jointEnv, 0.8f);
+        }
+        if (jointEnv > 1.0e-4f)
+        {
+            jointPhase += twoPi * 48.0 / sr;
+            if (jointPhase > twoPi) jointPhase -= twoPi;
+            thump = jointGain * jointEnv * (float) std::sin (jointPhase) * 1.414f;
+            jointEnv *= jointDecay;
+        }
+
         float buffet = 1.0f;
         if (window)
         {
@@ -275,16 +322,16 @@ void NoiseGenerator::process (float* left, float* right, int n) noexcept
             if (crackleRate > 0.0f && (ctrlRng.next() * 0.5f + 0.5f) < crackleRate)
                 impulse = ctrlRng.next();
 
-            float out = gain[rumble]      * chn.rumbleHp.process (chn.rumbleLp.process (pa))
-                      + gain[tyre]        * chn.tyreBp.process (pb)
-                      + gain[hiss]        * chn.hissB.process (chn.hissA.process (w4))
+            float out = texture * (gain[rumble] * chn.rumbleHp.process (chn.rumbleLp.process (pa))
+                                 + gain[tyre]   * chn.tyreBp.process (pb)
+                                 + gain[hiss]   * chn.hissB.process (chn.hissA.process (w4)))
                       + gain[wind]        * buffet * chn.windBp.process (pc)
                       + gain[rush]        * buffet * chn.rushBp.process (pc)
                       + gain[engineNoise] * chn.engBp.process (pb)
                       + gain[fan]         * chn.fanBp.process (pa)
                       + gain[crackle]     * chn.crackleBp.process (impulse);
 
-            out += tone + whineSample + clatter * engineToneGain * clatterEnv * w4;
+            out += tone + whineSample + thump + clatter * engineToneGain * clatterEnv * w4;
 
             (c == 0 ? left : right)[i] = out;
         }

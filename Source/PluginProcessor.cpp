@@ -40,6 +40,7 @@ void DDRAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     music.prepare (sr, n);
     noise.prepare (sr);
     const auto s = readSettings();
+    smoothed = s;
     music.update (s);
     noise.update (s);
     music.reset();
@@ -110,7 +111,22 @@ void DDRAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
         noiseBuf.setSize (2, n, false, false, true);
     }
 
-    const auto s = readSettings();
+    // Glide the continuous controls towards their targets, so turning a knob
+    // never steps the filters hard enough to click.
+    auto s = readSettings();
+    {
+        const float k = 1.0f - (float) std::exp (-(double) n / (0.03 * sr));
+        auto glide = [k] (float& current, float target) { current += (target - current) * k; return current; };
+        s.speedKmh    = glide (smoothed.speedKmh, s.speedKmh);
+        s.boom        = glide (smoothed.boom, s.boom);
+        s.resonance   = glide (smoothed.resonance, s.resonance);
+        s.reflections = glide (smoothed.reflections, s.reflections);
+        s.lowCutOct   = glide (smoothed.lowCutOct, s.lowCutOct);
+        s.distortion  = glide (smoothed.distortion, s.distortion);
+        s.bassDb      = glide (smoothed.bassDb, s.bassDb);
+        s.trebleDb    = glide (smoothed.trebleDb, s.trebleDb);
+        s.noiseAmount = glide (smoothed.noiseAmount, s.noiseAmount);
+    }
     music.update (s);
     noise.update (s);
 

@@ -86,6 +86,20 @@ private:
     // gravel stones
     float crackleRate = 0.0f;   // impulses per sample
 
+    // slow changes in the road texture, so the noise is never a static hiss
+    float textureTarget = 1.0f, texture = 1.0f, textureCoef = 0.0f;
+    int   textureCountdown = 0;
+
+    // expansion joints and patches: a double thump, front axle then rear axle
+    bool  jointsEnabled = false;
+    float jointGain = 0.0f;
+    int   jointCountdown = 0;
+    int   jointSecondHit = -1;      // samples until the rear axle hits, -1 = none pending
+    float jointEnv = 0.0f, jointDecay = 0.0f;
+    double jointPhase = 0.0;
+    float wheelbaseDelaySec = 0.0f;
+    int nextJointInterval() noexcept;
+
     float rampCoef = 0.0f;
     double sr = 44100.0;
 };

@@ -45,6 +45,7 @@ public:
 private:
     ddr::Settings readSettings() const;
 
+    ddr::Settings smoothed;
     ddr::MusicChain music;
     ddr::NoiseGenerator noise;
 
