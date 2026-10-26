@@ -45,7 +45,11 @@ jobs:
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
-        run: cmake --build build --config Release --target DDR_VST3 --parallel 4
+        shell: bash
+        run: |
+          targets="DDR_VST3"
+          if [ "$RUNNER_OS" = "macOS" ]; then targets="DDR_VST3 DDR_AU"; fi
+          cmake --build build --config Release --target $targets --parallel 4
 
       - name: Find the plugin
         id: plugin
@@ -54,10 +58,14 @@ jobs:
           path=$(find build -type d -name "DDR Drive Simulator.vst3" -path "*Release*" | head -1)
           echo "Found: $path"
           echo "path=$path" >> "$GITHUB_OUTPUT"
+          au=$(find build -type d -name "DDR Drive Simulator.component" -path "*Release*" | head -1)
+          echo "au=$au" >> "$GITHUB_OUTPUT"
 
       - name: Ad-hoc sign (macOS)
         if: runner.os == 'macOS'
-        run: codesign --force --deep --sign - "${{ steps.plugin.outputs.path }}"
+        run: |
+          codesign --force --deep --sign - "${{ steps.plugin.outputs.path }}"
+          codesign --force --deep --sign - "${{ steps.plugin.outputs.au }}"
 
       - name: Validate with pluginval
         shell: bash
@@ -75,6 +83,7 @@ jobs:
         run: |
           mkdir -p dist
           cp -R "${{ steps.plugin.outputs.path }}" dist/
+          if [ -n "${{ steps.plugin.outputs.au }}" ]; then cp -R "${{ steps.plugin.outputs.au }}" dist/; fi
           cp docs/INSTALL.txt dist/
           cd dist
           if [ "$RUNNER_OS" != "Windows" ]; then

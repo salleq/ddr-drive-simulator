@@ -24,6 +24,13 @@ else()
     FetchContent_MakeAvailable(JUCE)
 endif()
 
+# Audio Unit as well on macOS, so Logic and GarageBand users can run DDR too
+if(APPLE)
+    set(DDR_FORMATS VST3 AU Standalone)
+else()
+    set(DDR_FORMATS VST3 Standalone)
+endif()
+
 juce_add_plugin(DDR
     COMPANY_NAME "salleq"
     COMPANY_WEBSITE "https://github.com/salleq/ddr-drive-simulator"
@@ -32,8 +39,9 @@ juce_add_plugin(DDR
     PLUGIN_CODE Ddr1
     PRODUCT_NAME "DDR Drive Simulator"
     DESCRIPTION "Dreaded Drive Simulator - hear your mix in a stock family car"
-    FORMATS VST3 Standalone
+    FORMATS ${DDR_FORMATS}
     VST3_CATEGORIES Fx Tools
+    AU_MAIN_TYPE kAudioUnitType_Effect
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT FALSE
     NEEDS_MIDI_OUTPUT FALSE

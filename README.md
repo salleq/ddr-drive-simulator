@@ -1,6 +1,6 @@
 # DDR – (Dreaded) Drive Simulator
 
-**A free VST3 plugin for Windows, macOS and Linux that lets you hear your mix the way it sounds in an ordinary family car** – with the stock speakers, the cabin boom and the road noise. Put it last on your master bus, pick a car, set the speed and check whether the vocal, the bass and the snare still make it through.
+**A free VST3 plugin for Windows, macOS and Linux (plus Audio Unit on macOS for Logic and GarageBand) that lets you hear your mix the way it sounds in an ordinary family car** – with the stock speakers, the cabin boom and the road noise. Put it last on your master bus, pick a car, set the speed and check whether the vocal, the bass and the snare still make it through.
 
 ![DDR basic view](docs/ddr-basic.png)
 

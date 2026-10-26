@@ -254,7 +254,7 @@ void MaskingMeter::paint (juce::Graphics& g)
         g.setFont (juce::FontOptions (12.0f, juce::Font::bold));
         g.drawText (names[b], row.removeFromLeft (150), juce::Justification::centredLeft);
 
-        auto status = row.removeFromRight (110);
+        auto status = row.removeFromRight (170);
         auto bars = row.reduced (8, 0);
 
         auto widthFor = [&] (float db) { return juce::jlimit (0.0f, 1.0f, (db - floorDb) / -floorDb) * (float) bars.getWidth(); };
@@ -283,6 +283,16 @@ void MaskingMeter::paint (juce::Graphics& g)
         g.setColour (colour);
         g.setFont (juce::FontOptions (13.0f, juce::Font::bold));
         g.drawText (word, status, juce::Justification::centredRight);
+
+        if (m > -80.0f)
+        {
+            // the margin in dB, next to the word
+            g.setColour (Colours::dim);
+            g.setFont (juce::FontOptions (11.0f));
+            const auto diffDb = juce::roundToInt (m - n);
+            g.drawText ((diffDb > 0 ? "+" : "") + juce::String (diffDb) + " dB", status.withTrimmedRight (90),
+                        juce::Justification::centredRight);
+        }
     }
 }
 
@@ -456,6 +466,25 @@ void DDRPanel::timerCallback()
     carDescription.setText (carDescriptions[carIndex], juce::dontSendNotification);
     const int roadIndex = juce::jlimit (0, 4, road.box.getSelectedItemIndex());
     roadDescription.setText (roadDescriptions[roadIndex], juce::dontSendNotification);
+
+    // Show the situation only while the controls still match it
+    int matching = 0;
+    auto value = [this] (const char* id) { return processor.apvts.getRawParameterValue (id)->load(); };
+    for (size_t i = 0; i < situations().size(); ++i)
+    {
+        const auto& sit = situations()[i];
+        if (std::abs (value (ParamID::speed) - sit.speed) < 0.5f
+            && (int) value (ParamID::road) == (int) sit.road
+            && (int) value (ParamID::fan) == sit.fan
+            && (value (ParamID::window) > 0.5f) == sit.window
+            && (int) value (ParamID::seat) == (int) sit.seat)
+        {
+            matching = (int) i + 1;
+            break;
+        }
+    }
+    if (situationBox.getSelectedId() != matching)
+        situationBox.setSelectedId (matching, juce::dontSendNotification);
     meter.repaint();
 }
 

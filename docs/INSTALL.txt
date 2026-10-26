@@ -12,10 +12,13 @@ INSTALL ON macOS
 1. Copy "DDR Drive Simulator.vst3" to:
    /Library/Audio/Plug-Ins/VST3      (all users)
    or ~/Library/Audio/Plug-Ins/VST3  (just you)
+   Logic Pro / GarageBand use the Audio Unit instead: copy
+   "DDR Drive Simulator.component" to /Library/Audio/Plug-Ins/Components
 2. The plugin is not notarized by Apple, so macOS blocks it at first.
-   Open Terminal and run (all on one line):
+   Open Terminal and run (each on one line):
    xattr -dr com.apple.quarantine "/Library/Audio/Plug-Ins/VST3/DDR Drive Simulator.vst3"
-   (change the path if you used your own Library folder)
+   xattr -dr com.apple.quarantine "/Library/Audio/Plug-Ins/Components/DDR Drive Simulator.component"
+   (change the paths if you used your own Library folder)
 3. Rescan plugins in your DAW.
 
 INSTALL ON LINUX (x64)
