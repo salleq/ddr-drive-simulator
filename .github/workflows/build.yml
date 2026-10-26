@@ -102,9 +102,32 @@ jobs:
           name: DDR-${{ matrix.name }}
           path: DDR-${{ matrix.name }}.zip
 
+  test:
+    name: Stability test and screenshots
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libx11-dev libxrandr-dev libxinerama-dev \
+            libxcursor-dev libxext-dev libxcomposite-dev libfreetype-dev libfontconfig1-dev
+      - name: Build tools
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DDDR_BUILD_TOOLS=ON
+          cmake --build build --target ddr_snapshot ddr_analyze --parallel 4
+      - name: Run stability sweep and render the UI
+        run: ./build/ddr_snapshot_artefacts/Release/ddr_snapshot screenshots
+      - name: Frequency responses and noise spectra
+        run: ./build/ddr_analyze_artefacts/Release/ddr_analyze
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: screenshots/*.png
+
   release:
     name: Release
-    needs: build
+    needs: [build, test]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
