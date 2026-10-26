@@ -34,5 +34,19 @@ struct Settings
     float bassDb   = 0.0f;
     float trebleDb = 0.0f;
     bool  limiter  = true;
+
+    // Exact comparison on purpose: it only decides whether the filters need recomputing.
+    JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wfloat-equal")
+    bool operator== (const Settings& o) const noexcept
+    {
+        return car == o.car && speedKmh == o.speedKmh && road == o.road && engine == o.engine
+            && window == o.window && fan == o.fan && noiseAmount == o.noiseAmount && noiseOnly == o.noiseOnly
+            && boom == o.boom && resonance == o.resonance && reflections == o.reflections && seat == o.seat
+            && rhd == o.rhd && lowCutOct == o.lowCutOct && distortion == o.distortion && worn == o.worn
+            && source == o.source && volume == o.volume && loudness == o.loudness && svc == o.svc
+            && bassDb == o.bassDb && trebleDb == o.trebleDb && limiter == o.limiter;
+    }
+    JUCE_END_IGNORE_WARNINGS_GCC_LIKE
+    bool operator!= (const Settings& o) const noexcept { return ! (*this == o); }
 };
 } // namespace ddr

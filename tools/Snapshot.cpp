@@ -91,6 +91,56 @@ int main (int argc, char* argv[])
         }
     std::printf ("sweep finite: %s\n", finite ? "yes" : "NO");
 
+    // Robustness: other sample rates, odd block sizes, and CPU cost
+    for (double rate : { 44100.0, 96000.0, 192000.0 })
+        for (int block : { 1, 33, 4096 })
+        {
+            DDRAudioProcessor p2;
+            p2.setPlayConfigDetails (2, 2, rate, block);
+            p2.prepareToPlay (rate, block);
+            juce::AudioBuffer<float> buf (2, block);
+            juce::MidiBuffer midi;
+            bool ok = true;
+            const int total = (int) rate * 2;
+            int64_t at = 0;
+            const auto t0 = juce::Time::getMillisecondCounterHiRes();
+            while (at < total)
+            {
+                fillTestSong (buf, rate, at);
+                at += block;
+                p2.processBlock (buf, midi);
+                for (int c = 0; c < 2; ++c)
+                    for (int i = 0; i < block; ++i)
+                        if (! std::isfinite (buf.getSample (c, i))) ok = false;
+            }
+            const double ms = juce::Time::getMillisecondCounterHiRes() - t0;
+            std::printf ("rate %6.0f block %4d: %s, CPU %.1f %% of real time\n", rate, block, ok ? "ok" : "NOT FINITE",
+                         100.0 * ms / 2000.0);
+            finite = finite && ok;
+        }
+
+    // Mono in / mono out
+    {
+        DDRAudioProcessor p3;
+        juce::AudioProcessor::BusesLayout mono;
+        mono.inputBuses.add (juce::AudioChannelSet::mono());
+        mono.outputBuses.add (juce::AudioChannelSet::mono());
+        const bool supported = p3.setBusesLayout (mono);
+        p3.setPlayConfigDetails (1, 1, sr, 512);
+        p3.prepareToPlay (sr, 512);
+        juce::AudioBuffer<float> buf (1, 512);
+        juce::MidiBuffer midi;
+        bool ok = true;
+        for (int k = 0; k < 200; ++k)
+        {
+            for (int i = 0; i < 512; ++i) buf.setSample (0, i, 0.3f * std::sin ((float) (k * 512 + i) * 0.01f));
+            p3.processBlock (buf, midi);
+            for (int i = 0; i < 512; ++i) if (! std::isfinite (buf.getSample (0, i))) ok = false;
+        }
+        std::printf ("mono layout supported: %s, output %s\n", supported ? "yes" : "no", ok ? "ok" : "NOT FINITE");
+        finite = finite && ok;
+    }
+
     // Reset to defaults for the measurements and the screenshot
     for (auto* param : processor.getParameters())
         if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (param))

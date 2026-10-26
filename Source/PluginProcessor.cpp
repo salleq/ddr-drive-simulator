@@ -41,6 +41,7 @@ void DDRAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     noise.prepare (sr);
     const auto s = readSettings();
     smoothed = s;
+    lastApplied = s;
     music.update (s);
     noise.update (s);
     music.reset();
@@ -116,7 +117,13 @@ void DDRAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     auto s = readSettings();
     {
         const float k = 1.0f - (float) std::exp (-(double) n / (0.03 * sr));
-        auto glide = [k] (float& current, float target) { current += (target - current) * k; return current; };
+        auto glide = [k] (float& current, float target)
+        {
+            current += (target - current) * k;
+            if (std::abs (target - current) < 1.0e-4f)
+                current = target; // settle exactly, so unchanged settings can skip the filter update
+            return current;
+        };
         s.speedKmh    = glide (smoothed.speedKmh, s.speedKmh);
         s.boom        = glide (smoothed.boom, s.boom);
         s.resonance   = glide (smoothed.resonance, s.resonance);
@@ -127,8 +134,12 @@ void DDRAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
         s.trebleDb    = glide (smoothed.trebleDb, s.trebleDb);
         s.noiseAmount = glide (smoothed.noiseAmount, s.noiseAmount);
     }
-    music.update (s);
-    noise.update (s);
+    if (s != lastApplied)
+    {
+        music.update (s);
+        noise.update (s);
+        lastApplied = s;
+    }
 
     // input -> dry, upmixing mono to two channels
     for (int c = 0; c < 2; ++c)
