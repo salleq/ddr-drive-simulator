@@ -142,6 +142,44 @@ int main (int argc, char* argv[])
         finite = finite && ok;
     }
 
+    // STUDIO must pass the mix through untouched, and the state must survive a save and load.
+    {
+        DDRAudioProcessor p4;
+        p4.setPlayConfigDetails (2, 2, sr, 512);
+        p4.prepareToPlay (sr, 512);
+        setParam (p4, ddr::ParamID::carMode, 0.0f);
+        juce::AudioBuffer<float> buf (2, 512), ref (2, 512);
+        juce::MidiBuffer midi;
+        int64_t at = 0;
+        float worst = 0.0f;
+        for (int k = 0; k < 200; ++k)
+        {
+            fillTestSong (buf, sr, at);
+            ref.makeCopyOf (buf);
+            at += 512;
+            p4.processBlock (buf, midi);
+            if (k >= 100)
+                for (int c = 0; c < 2; ++c)
+                    for (int i = 0; i < 512; ++i)
+                        worst = juce::jmax (worst, std::abs (buf.getSample (c, i) - ref.getSample (c, i)));
+        }
+        const bool transparent = worst < 1.0e-5f;
+        std::printf ("STUDIO transparent: %s (max difference %.2g)\n", transparent ? "yes" : "NO", (double) worst);
+
+        setParam (p4, ddr::ParamID::car, 4.0f);
+        setParam (p4, ddr::ParamID::speed, 77.0f);
+        setParam (p4, ddr::ParamID::road, 3.0f);
+        juce::MemoryBlock saved;
+        p4.getStateInformation (saved);
+        DDRAudioProcessor p5;
+        p5.setStateInformation (saved.getData(), (int) saved.getSize());
+        bool same = true;
+        for (auto* id : { ddr::ParamID::carMode, ddr::ParamID::car, ddr::ParamID::speed, ddr::ParamID::road })
+            same = same && std::abs (p4.apvts.getRawParameterValue (id)->load() - p5.apvts.getRawParameterValue (id)->load()) < 1.0e-4f;
+        std::printf ("state round trip: %s\n", same ? "ok" : "MISMATCH");
+        finite = finite && transparent && same;
+    }
+
     // Reset to defaults for the measurements and the screenshot
     for (auto* param : processor.getParameters())
         if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (param))
