@@ -14,7 +14,7 @@ DDRAudioProcessor::DDRAudioProcessor()
             p (ParamID::mono), p (ParamID::levelMatch),
             p (ParamID::engine), p (ParamID::window), p (ParamID::fan), p (ParamID::noiseAmount), p (ParamID::noiseOnly),
             p (ParamID::boom), p (ParamID::resonance), p (ParamID::reflections), p (ParamID::seat), p (ParamID::rhd),
-            p (ParamID::lowCut), p (ParamID::distortion), p (ParamID::worn), p (ParamID::source),
+            p (ParamID::lowCut), p (ParamID::distortion), p (ParamID::worn), p (ParamID::source), p (ParamID::fader),
             p (ParamID::volume), p (ParamID::loudness), p (ParamID::svc), p (ParamID::bass), p (ParamID::treble),
             p (ParamID::limiter) };
 
@@ -86,6 +86,7 @@ Settings DDRAudioProcessor::readSettings() const
     s.distortion  = raw.distortion->load() * 0.01f;
     s.worn        = raw.worn->load() > 0.5f;
     s.source      = (Source) juce::jlimit (0, 2, (int) raw.source->load());
+    s.fader       = raw.fader->load() * 0.01f;
     s.volume      = (int) raw.volume->load();
     s.loudness    = raw.loudness->load() > 0.5f;
     s.svc         = (int) raw.svc->load();
@@ -133,6 +134,7 @@ void DDRAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
         s.bassDb      = glide (smoothed.bassDb, s.bassDb);
         s.trebleDb    = glide (smoothed.trebleDb, s.trebleDb);
         s.noiseAmount = glide (smoothed.noiseAmount, s.noiseAmount);
+        s.fader       = glide (smoothed.fader, s.fader);
     }
     if (s != lastApplied)
     {

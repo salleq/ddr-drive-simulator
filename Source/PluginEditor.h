@@ -124,7 +124,7 @@ private:
     ddr::Choice seat;
     ddr::Toggle rhd;
     // advanced: speakers
-    ddr::Knob   lowCut, distortion;
+    ddr::Knob   lowCut, distortion, fader;
     ddr::Choice source;
     ddr::Toggle worn;
     // advanced: head unit

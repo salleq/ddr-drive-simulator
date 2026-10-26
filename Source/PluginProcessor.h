@@ -68,7 +68,7 @@ private:
         std::atomic<float> *carMode, *car, *speed, *road, *output, *mono, *levelMatch,
                            *engine, *window, *fan, *noiseAmount, *noiseOnly,
                            *boom, *resonance, *reflections, *seat, *rhd,
-                           *lowCut, *distortion, *worn, *source,
+                           *lowCut, *distortion, *worn, *source, *fader,
                            *volume, *loudness, *svc, *bass, *treble, *limiter;
     } raw;
 

@@ -35,6 +35,7 @@ namespace ParamID
     inline constexpr const char* distortion  = "distortion";
     inline constexpr const char* worn        = "worn";
     inline constexpr const char* source      = "source";
+    inline constexpr const char* fader       = "fader";
 
     // Advanced: head unit
     inline constexpr const char* volume      = "volume";
@@ -69,6 +70,7 @@ struct CarProfile
     float widthMetres;     // distance between the front door speakers
     // noise
     float insulationDb;    // + = louder cabin
+    bool  rearSpeakers;    // rear door speakers as well as front ones
 };
 
 const std::array<CarProfile, 6>& carProfiles();

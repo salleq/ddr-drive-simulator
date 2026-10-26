@@ -318,6 +318,7 @@ DDRPanel::DDRPanel (DDRAudioProcessor& p)
       rhd (p.apvts, ParamID::rhd, "RIGHT-HAND DRIVE"),
       lowCut (p.apvts, ParamID::lowCut, "LOW CUT"),
       distortion (p.apvts, ParamID::distortion, "DISTORTION"),
+      fader (p.apvts, ParamID::fader, "FADER"),
       source (p.apvts, ParamID::source, "SOURCE"),
       worn (p.apvts, ParamID::worn, "WORN SPEAKERS"),
       volume (p.apvts, ParamID::volume, "VOLUME"),
@@ -388,7 +389,7 @@ DDRPanel::DDRPanel (DDRAudioProcessor& p)
              &car, &road, &speed, &output, &mono, &levelMatch, &carDescription, &roadDescription, &meter,
              &engine, &fan, &noiseAmount, &window, &noiseOnly,
              &boom, &resonance, &reflections, &seat, &rhd,
-             &lowCut, &distortion, &source, &worn,
+             &lowCut, &distortion, &fader, &source, &worn,
              &volume, &bass, &treble, &svc, &loudness, &limiter })
         addAndMakeVisible (c);
 
@@ -414,6 +415,7 @@ DDRPanel::DDRPanel (DDRAudioProcessor& p)
     lowCut.slider.setTooltip ("Moves the speakers' bass roll-off down (bigger) or up (smaller) in octaves.");
     distortion.slider.setTooltip ("How much the door speakers distort when the bass gets loud.");
     source.box.setTooltip ("How the music reaches the car: USB/CD, Bluetooth or FM radio.");
+    fader.slider.setTooltip ("Front/rear balance, like the car's own fader. The City Car has no rear speakers.");
     worn.button.setTooltip ("Old, tired speaker cones: less bass, duller top, more distortion.");
     volume.slider.setTooltip ("Car stereo volume. Louder lifts the music over the noise but pushes the limiter and speakers.");
     bass.slider.setTooltip ("The car stereo's bass tone control.");
@@ -449,7 +451,7 @@ void DDRPanel::setAdvanced (bool shouldBeAdvanced)
     for (juce::Component* c : std::initializer_list<juce::Component*> {
              &engine, &fan, &noiseAmount, &window, &noiseOnly,
              &boom, &resonance, &reflections, &seat, &rhd,
-             &lowCut, &distortion, &source, &worn,
+             &lowCut, &distortion, &fader, &source, &worn,
              &volume, &bass, &treble, &svc, &loudness, &limiter })
         c->setVisible (advanced);
 
@@ -597,7 +599,7 @@ void DDRPanel::resized()
 
         layoutGroup (groupPanels[0], { &fan, &noiseAmount }, &engine, { &window, &noiseOnly });
         layoutGroup (groupPanels[1], { &boom, &resonance, &reflections }, &seat, { &rhd });
-        layoutGroup (groupPanels[2], { &lowCut, &distortion }, &source, { &worn });
+        layoutGroup (groupPanels[2], { &lowCut, &distortion, &fader }, &source, { &worn });
         layoutGroup (groupPanels[3], { &volume, &bass, &treble }, &svc, { &loudness, &limiter });
 
         area.removeFromTop (10);

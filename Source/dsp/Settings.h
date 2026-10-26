@@ -27,6 +27,7 @@ struct Settings
     float  distortion = 1.0f;    // 0..2
     bool   worn       = false;
     Source source     = Source::usb;
+    float  fader      = 0.0f;    // -1 front only .. +1 rear only
 
     int   volume   = 20;         // 0..40, car volume steps
     bool  loudness = true;
@@ -43,7 +44,7 @@ struct Settings
             && window == o.window && fan == o.fan && noiseAmount == o.noiseAmount && noiseOnly == o.noiseOnly
             && boom == o.boom && resonance == o.resonance && reflections == o.reflections && seat == o.seat
             && rhd == o.rhd && lowCutOct == o.lowCutOct && distortion == o.distortion && worn == o.worn
-            && source == o.source && volume == o.volume && loudness == o.loudness && svc == o.svc
+            && source == o.source && fader == o.fader && volume == o.volume && loudness == o.loudness && svc == o.svc
             && bassDb == o.bassDb && trebleDb == o.trebleDb && limiter == o.limiter;
     }
     JUCE_END_IGNORE_WARNINGS_GCC_LIKE

@@ -75,6 +75,8 @@ void MusicChain::reset()
     huGainSmoothed = huGain;
     reflLpL.reset();
     reflLpR.reset();
+    rearLpL.reset();
+    rearLpR.reset();
 }
 
 void MusicChain::update (const Settings& s)
@@ -146,22 +148,37 @@ void MusicChain::update (const Settings& s)
         const auto& m = car.modes[i];
         keepState (cabModes[i], [&] (Biquad& b) { b.setPeak (sr, m.freq, m.q, m.gainDb * s.resonance); });
     }
-    keepState (cabSeatShelf, [&] (Biquad& b) { if (back) b.setHighShelf (sr, 2500.0, -4.0); else b.setIdentity(); });
+    keepState (cabSeatShelf, [&] (Biquad& b) { if (back) b.setHighShelf (sr, 2500.0, -2.0); else b.setIdentity(); });
 
     // ---- Seat: arrival time and level from each front speaker ---------------
     const auto ear = earFor (s.seat, s.rhd, car.widthMetres);
     const float half = car.widthMetres * 0.5f;
-    auto dist = [&] (float speakerX)
+    constexpr float rearPlane = 1.6f; // rear door speakers, metres behind the front ones
+    auto dist = [&] (float speakerX, float planeOffset)
     {
-        const float dx = ear.x - speakerX;
-        return std::sqrt (dx * dx + ear.forward * ear.forward + ear.down * ear.down);
+        const float dx = ear.x - speakerX, dy = ear.forward - planeOffset;
+        return std::sqrt (dx * dx + dy * dy + ear.down * ear.down);
     };
-    const float dL = dist (-half), dR = dist (half), dMin = std::min (dL, dR);
-    seatDelayL = (int) std::lround ((dL - dMin) / speedOfSound * sr);
-    seatDelayR = (int) std::lround ((dR - dMin) / speedOfSound * sr);
+    const bool rear = car.rearSpeakers;
+    const float dL = dist (-half, 0.0f), dR = dist (half, 0.0f);
+    const float rL = dist (-half, rearPlane), rR = dist (half, rearPlane);
+    const float dMin = rear ? std::min ({ dL, dR, rL, rR }) : std::min (dL, dR);
+    auto delayFor = [&] (float d) { return (int) std::lround ((d - dMin) / speedOfSound * sr); };
     // a car cabin is small and reflective, so the level drops slower than 1/r
-    seatGainL = std::pow (dMin / dL, 0.7f);
-    seatGainR = std::pow (dMin / dR, 0.7f);
+    auto gainFor  = [&] (float d) { return std::pow (dMin / d, 0.7f); };
+
+    const float fader = juce::jlimit (-1.0f, 1.0f, s.fader);
+    frontLevel = fader > 0.0f ? 1.0f - fader : 1.0f;
+    const float rearLevel = rear ? (fader < 0.0f ? 1.0f + fader : 1.0f) * 0.55f : 0.0f; // rear pair is smaller and further away
+
+    seatDelayL = delayFor (dL);  seatDelayR = delayFor (dR);
+    seatGainL  = gainFor (dL);   seatGainR  = gainFor (dR);
+    rearDelayL = rear ? delayFor (rL) : 0;
+    rearDelayR = rear ? delayFor (rR) : 0;
+    rearGainL  = rear ? gainFor (rL) * rearLevel : 0.0f;
+    rearGainR  = rear ? gainFor (rR) * rearLevel : 0.0f;
+    rearLpL.setCutoff (sr, back ? 12000.0 : 4500.0);
+    rearLpR.setCutoff (sr, back ? 12000.0 : 4500.0);
     crossfeed = s.seat == Seat::sweetSpot ? 0.35f : 0.45f;
 
     // ---- Early reflections from glass and dashboard -------------------------
@@ -247,10 +264,18 @@ void MusicChain::process (float* left, float* right, int n) noexcept
         auto readL = [&] (int d) { return delayL[(size_t) ((writePos - d) & delayMask)]; };
         auto readR = [&] (int d) { return delayR[(size_t) ((writePos - d) & delayMask)]; };
 
-        const float fromL = seatGainL * readL (seatDelayL);
-        const float fromR = seatGainR * readR (seatDelayR);
+        const float fromL = frontLevel * seatGainL * readL (seatDelayL);
+        const float fromR = frontLevel * seatGainR * readR (seatDelayR);
         float outL = fromL + crossfeed * fromR;
         float outR = fromR + crossfeed * fromL;
+
+        if (rearGainL > 0.0f || rearGainR > 0.0f)
+        {
+            const float backL = rearLpL.process (rearGainL * readL (rearDelayL));
+            const float backR = rearLpR.process (rearGainR * readR (rearDelayR));
+            outL += backL + crossfeed * backR;
+            outR += backR + crossfeed * backL;
+        }
 
         if (reflectionGain > 0.0f)
         {

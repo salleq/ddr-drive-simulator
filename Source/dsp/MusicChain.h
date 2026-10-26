@@ -48,6 +48,10 @@ private:
     int    writePos = 0, delayMask = 0;
     int    seatDelayL = 0, seatDelayR = 0;
     float  seatGainL = 1.0f, seatGainR = 1.0f, crossfeed = 0.45f;
+    int    rearDelayL = 0, rearDelayR = 0;
+    float  rearGainL = 0.0f, rearGainR = 0.0f;   // includes the fader; 0 = no rear speakers
+    float  frontLevel = 1.0f;
+    OnePole rearLpL, rearLpR;                    // rear speakers heard through the seat backs
     static constexpr int numTaps = 5;
     std::array<int, numTaps>   tapL {}, tapR {};
     std::array<float, numTaps> tapGain {};
