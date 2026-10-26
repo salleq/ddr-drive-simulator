@@ -97,6 +97,7 @@ private:
 
     DDRAudioProcessor& processor;
     ddr::DashLookAndFeel lnf;
+    juce::TooltipWindow tooltips { this, 600 };
 
     // header
     juce::TextButton basicButton { "BASIC" }, advancedButton { "ADVANCED" };

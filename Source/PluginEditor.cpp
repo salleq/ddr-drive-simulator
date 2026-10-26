@@ -54,6 +54,9 @@ DashLookAndFeel::DashLookAndFeel()
     setColour (juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
     setColour (juce::TextButton::textColourOffId, Colours::dim);
     setColour (juce::TextButton::textColourOnId, Colours::background);
+    setColour (juce::TooltipWindow::backgroundColourId, Colours::panel);
+    setColour (juce::TooltipWindow::textColourId, Colours::text);
+    setColour (juce::TooltipWindow::outlineColourId, Colours::accent);
 }
 
 void DashLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int w, int h, float pos,
@@ -359,6 +362,36 @@ DDRAudioProcessorEditor::DDRAudioProcessorEditor (DDRAudioProcessor& p)
              &volume, &bass, &treble, &svc, &loudness, &limiter })
         addAndMakeVisible (c);
 
+    // Tooltips: hover any control to see what it does
+    car.box.setTooltip ("The kind of car and its stock audio system.");
+    speed.slider.setTooltip ("Driving speed. Road, tyre, wind and engine noise grow with it.");
+    road.box.setTooltip ("Road surface. Changes the colour and level of the tyre noise.");
+    output.slider.setTooltip ("Final output level.");
+    mono.button.setTooltip ("Sum to mono, like many Bluetooth speakers and back-seat listeners hear it.");
+    levelMatch.button.setTooltip ("Keeps CAR mode as loud as STUDIO, so the comparison is fair.");
+    carModeButton.setTooltip ("CAR: hear the simulation. STUDIO: hear your mix untouched. Bypass DDR before you bounce!");
+    situationBox.setTooltip ("Quick driving situations: sets speed, road, fan, window and seat.");
+    engine.box.setTooltip ("Engine sound. Petrol hums, diesel clatters, electric whines quietly.");
+    fan.slider.setTooltip ("Ventilation fan speed. 0 is off.");
+    noiseAmount.slider.setTooltip ("Scales all the driving noise. 100 % is a typical car.");
+    window.button.setTooltip ("Driver's window open: much more wind and buffeting.");
+    noiseOnly.button.setTooltip ("Listen to the noise alone.");
+    boom.slider.setTooltip ("Cabin bass build-up below about 80 Hz, relative to the chosen car.");
+    resonance.slider.setTooltip ("Strength of the cabin's narrow bass resonances and dips (60-200 Hz).");
+    reflections.slider.setTooltip ("Early reflections from the windows and dashboard.");
+    seat.box.setTooltip ("Where you sit. Off-centre seats hear the near speaker first and louder.");
+    rhd.button.setTooltip ("Mirror the car for right-hand drive countries.");
+    lowCut.slider.setTooltip ("Moves the speakers' bass roll-off down (bigger) or up (smaller) in octaves.");
+    distortion.slider.setTooltip ("How much the door speakers distort when the bass gets loud.");
+    source.box.setTooltip ("How the music reaches the car: USB/CD, Bluetooth or FM radio.");
+    worn.button.setTooltip ("Old, tired speaker cones: less bass, duller top, more distortion.");
+    volume.slider.setTooltip ("Car stereo volume. Louder lifts the music over the noise but pushes the limiter and speakers.");
+    bass.slider.setTooltip ("The car stereo's bass tone control.");
+    treble.slider.setTooltip ("The car stereo's treble tone control.");
+    svc.box.setTooltip ("Speed-dependent volume: the car turns the music up as you drive faster.");
+    loudness.button.setTooltip ("Boosts bass and treble at low volume, as many car stereos do.");
+    limiter.button.setTooltip ("The head unit's built-in limiter that stops the speakers from overloading.");
+
     advanced = (bool) p.apvts.state.getProperty ("advanced", false);
     setAdvanced (advanced);
     timerCallback();
@@ -373,6 +406,7 @@ DDRAudioProcessorEditor::~DDRAudioProcessorEditor()
 void DDRAudioProcessorEditor::updateCarModeButton()
 {
     carModeButton.setButtonText (carModeButton.getToggleState() ? "CAR" : "STUDIO");
+    repaint (0, 0, getWidth(), 64);
 }
 
 void DDRAudioProcessorEditor::setAdvanced (bool shouldBeAdvanced)
@@ -412,7 +446,14 @@ void DDRAudioProcessorEditor::paint (juce::Graphics& g)
     g.drawText ("DDR", margin, 12, 90, 40, juce::Justification::centredLeft);
     g.setColour (Colours::dim);
     g.setFont (juce::FontOptions (12.0f, juce::Font::bold));
-    g.drawText ("(DREADED) DRIVE SIMULATOR", margin + 84, 26, 220, 16, juce::Justification::centredLeft);
+    g.drawText ("(DREADED) DRIVE SIMULATOR", margin + 84, 20, 220, 16, juce::Justification::centredLeft);
+
+    if (carModeButton.getToggleState())
+    {
+        g.setColour (Colours::accent.withAlpha (0.85f));
+        g.setFont (juce::FontOptions (11.0f));
+        g.drawText ("Car mode is on. Bypass DDR before you bounce!", margin + 84, 36, 300, 14, juce::Justification::centredLeft);
+    }
 
     drawPanel (g, basicPanel, "THE DRIVE");
     drawPanel (g, meterPanel, "CAN YOU STILL HEAR IT?  music vs. noise");

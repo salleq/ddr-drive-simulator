@@ -18,6 +18,11 @@ INSTALL ON macOS
    (change the path if you used your own Library folder)
 3. Rescan plugins in your DAW.
 
+INSTALL ON LINUX (x64)
+1. Copy "DDR Drive Simulator.vst3" to ~/.vst3 (create the folder if needed)
+   or to /usr/lib/vst3 for all users.
+2. Rescan plugins in your DAW (Reaper, Bitwig, Ardour...).
+
 HOW TO USE
 Put DDR as the LAST plugin on your master bus. Pick a car, a speed and a road.
 Press CAR / STUDIO to compare. Remember to switch it off (or bypass it) before you bounce!

@@ -1,6 +1,6 @@
 # DDR – (Dreaded) Drive Simulator
 
-**A free VST3 plugin that lets you hear your mix the way it sounds in an ordinary family car** – with the stock speakers, the cabin boom and the road noise. Put it last on your master bus, pick a car, set the speed and check whether the vocal, the bass and the snare still make it through.
+**A free VST3 plugin for Windows, macOS and Linux that lets you hear your mix the way it sounds in an ordinary family car** – with the stock speakers, the cabin boom and the road noise. Put it last on your master bus, pick a car, set the speed and check whether the vocal, the bass and the snare still make it through.
 
 ![DDR basic view](docs/ddr-basic.png)
 
@@ -43,13 +43,20 @@ The car presets are educated guesses at typical stock systems, not measurements 
 
 ## Download and install
 
-Get the latest zip for Windows or macOS from the [Releases page](https://github.com/salleq/ddr-drive-simulator/releases). Install instructions are in `INSTALL.txt` inside the zip ([read it here](docs/INSTALL.txt)).
+Get the latest zip for Windows, macOS or Linux (x64) from the [Releases page](https://github.com/salleq/ddr-drive-simulator/releases). Install instructions are in `INSTALL.txt` inside the zip ([read it here](docs/INSTALL.txt)).
 
 macOS users: the plugin is not notarized yet, so you need to run one Terminal command once (see INSTALL.txt).
 
 ## Build it yourself
 
-You need CMake 3.22+ and a C++17 compiler (Xcode on macOS, Visual Studio 2022 on Windows). JUCE is downloaded automatically.
+You need CMake 3.22+ and a C++17 compiler (Xcode on macOS, Visual Studio 2022 on Windows, GCC or Clang on Linux). JUCE is downloaded automatically.
+
+On Linux, install the JUCE dependencies first (Debian/Ubuntu):
+
+```sh
+sudo apt install libasound2-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev \
+  libxext-dev libxcomposite-dev libfreetype-dev libfontconfig1-dev
+```
 
 ```sh
 cmake -B build -DCMAKE_BUILD_TYPE=Release
@@ -61,7 +68,7 @@ Developer extras:
 - `-DJUCE_DIR=/path/to/JUCE` uses a local JUCE checkout instead of downloading it
 - `-DDDR_BUILD_TOOLS=ON` builds `ddr_snapshot`, which renders the UI to PNG and runs a quick level and stability check
 
-GitHub Actions builds and validates (pluginval) both platforms on every push. Pushing a tag like `v0.1.0` publishes a release with the zips.
+GitHub Actions builds and validates (pluginval) all three platforms on every push. Pushing a tag like `v0.1.0` publishes a release with the zips.
 
 ## How it works
 
@@ -76,4 +83,6 @@ mix ─► source ─► head unit ─► speakers ─► cabin + seat ─► (+
 
 The noise is added after the car stereo, because it reaches your ears directly. Noise levels are set in dB SPL and mapped so that a typical master plays at a car-like ~83 dB SPL. Level match keeps CAR mode as loud as your input, and gives the noise the same gain, so turning the car volume up lifts the music above the noise just like in a real car.
 
-Built with [JUCE](https://juce.com). Licensed under the GNU AGPL v3.
+## Licence
+
+DDR is free software under the [GNU Affero General Public License v3](LICENSE). It is built with [JUCE](https://juce.com), whose free licence option is the AGPLv3, which requires the plugin's source code to stay open under the same licence. You may use DDR freely, including on commercial music.
