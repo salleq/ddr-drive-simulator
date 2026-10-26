@@ -37,10 +37,22 @@ DDR simulates all of these.
 | --- | --- |
 | Driving & noise | Fan (0–4), Noise amount, Engine (Petrol / Diesel / Electric), Window open, Noise only |
 | Cabin & seat | Boom, Resonance, Reflections, Seat (Driver / Front Passenger / Back Seat / Sweet Spot), Right-hand drive |
-| Speakers | Low cut shift, Cone distortion, Worn speakers, Source (USB / Bluetooth / FM radio) |
+| Speakers | Low cut shift, Cone distortion (incl. door rattle), Fader (front/rear), Worn speakers, Source (USB / Bluetooth / FM radio) |
 | Head unit | Volume (0–40), Bass, Treble, Speed volume (Off / Low / High), Loudness, Limiter |
 
 The car presets are educated guesses at typical stock systems, not measurements of any specific car.
+
+## Quick workflow
+
+1. Put DDR **last** on the master bus (after your limiter).
+2. Pick a car close to what your listeners drive. *Family Hatchback* is a good default.
+3. Choose **Motorway** from the Situation menu and play the loudest chorus.
+4. Watch **Can you still hear it?** and listen: is the lead vocal still clear? Does the bass line stay even, or do single notes boom?
+5. Flip **CAR / STUDIO** (it is level-matched, so louder never "wins") and fix the mix, not the plugin.
+6. Try **City** and **Parked** too: quiet passages and fade-outs disappear first at speed, while the cabin boom is most obvious when parked.
+7. **Bypass DDR before you bounce.** The header reminds you while CAR mode is on.
+
+Tips: *Back Seat* and *Mono* show what the kids and Bluetooth speakers hear. *Volume* at 30+ shows how the stock amp and speakers fall apart when people crank it. The noise stops when your DAW's transport stops.
 
 ## Download and install
 
