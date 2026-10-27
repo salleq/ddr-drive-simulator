@@ -23,11 +23,15 @@ DDR simulates all of these.
 - **Car type** – Family Wagon, Family Hatchback, Old Family Car, City Car, Family SUV, Premium Sedan (reference), or **My Car** – your own car, measured with a phone (see below)
 - **Speed** – 0–140 km/h. Raises road, wind and engine noise like a real drive
 - **Road** – Smooth Asphalt, Rough Asphalt, Studded Tyres, Gravel, Wet Road
-- **CAR / STUDIO** – level-matched A/B switch
+- **Listen on** – Car, or one of the other places your song gets played: **Phone Speaker** (on a kitchen table), **Cheap Earbuds** (on a bus) or **Bluetooth Speaker** (at a party). Each has its own speaker sound and background noise
+- **STUDIO / CAR** – A/B switch. Level matched with K-weighting, like a loudness meter, so the louder side never "wins"; the amount it matched is shown under **Level Match**
 - **Situation** – Parked, City, Motorway, Winter Motorway, Windows Down, Back Seat
 - **Output**, **Mono**, **Level Match**
 - **Skin** – Retro (an 80s night drive behind the controls) or Plain, plus a window size menu (75–150 %)
 - **Can you still hear it?** – shows per band (low / mid / high) if your music is CLEAR, FIGHTING or MASKED by the noise
+- **Mix hints** – plain-English tips under the meter, for example *"Vocals (1-4 kHz) get masked from about 105 km/h"* or *"Bass below 200 Hz nearly vanishes on a phone speaker"*. In a car DDR works out the speed where each part of your mix goes under the road noise. The hints are estimates from band levels, so use them as a pointer and trust your ears
+
+![DDR on a Bluetooth speaker](docs/ddr-places.png)
 
 **Advanced** – everything else:
 
@@ -56,9 +60,10 @@ Step-by-step instructions: **[docs/MY-CAR.md](docs/MY-CAR.md)**. Test signal: [D
 2. Pick a car close to what your listeners drive. *Family Hatchback* is a good default.
 3. Choose **Motorway** from the Situation menu and play the loudest chorus.
 4. Watch **Can you still hear it?** and listen: is the lead vocal still clear? Does the bass line stay even, or do single notes boom?
-5. Flip **CAR / STUDIO** (it is level-matched, so louder never "wins") and fix the mix, not the plugin.
+5. Read the **mix hints**, then flip **STUDIO / CAR** (it is level-matched, so louder never "wins") and fix the mix, not the plugin.
 6. Try **City** and **Parked** too: quiet passages and fade-outs disappear first at speed, while the cabin boom is most obvious when parked.
-7. **Bypass DDR before you bounce.** The header reminds you while CAR mode is on.
+7. Switch **Listen on** to the phone, earbuds and Bluetooth speaker for a last check.
+8. **Bypass DDR before you bounce.** The header reminds you while CAR mode is on.
 
 Tips: *Back Seat* and *Mono* show what the kids and Bluetooth speakers hear. *Volume* at 30+ shows how the stock amp and speakers fall apart when people crank it. The noise stops when your DAW's transport stops.
 

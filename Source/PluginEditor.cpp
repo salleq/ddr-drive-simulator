@@ -6,8 +6,8 @@ using namespace ddr;
 namespace
 {
     constexpr int editorWidth    = 880;
-    constexpr int basicHeight    = 430;
-    constexpr int advancedHeight = 712;
+    constexpr int basicHeight    = 500;
+    constexpr int advancedHeight = 782;
     constexpr int margin         = 16;
 
     const char* carDescriptions[] {
@@ -18,6 +18,13 @@ namespace
         "Big, tall cabin. Lower boom and more wind noise at speed.",
         "The reference: subwoofer, DSP and a quiet cabin. Your mix should shine here.",
         "" // My Car: written in timerCallback
+    };
+
+    const char* placeDescriptions[] {
+        "",
+        "A phone lying on the kitchen table. Mono, almost nothing below 400 Hz, and phone DSP squashes the loud parts.",
+        "Cheap earbuds on a bus. The loose fit loses the bass, a harsh 3-5 kHz peak, and the bus rumble leaks in.",
+        "A small mono Bluetooth speaker at a party. A bass bump at 110 Hz, nothing below 70 Hz, and a limiter that ducks with the kick."
     };
 
     const char* roadDescriptions[] {
@@ -300,8 +307,37 @@ void MaskingMeter::paint (juce::Graphics& g)
 }
 
 //==============================================================================
+void HintView::refresh()
+{
+    auto s = processor.readSettings();
+    hints = engine.make (processor.getHintLevels(), s, processor.getPlace());
+    repaint();
+}
+
+void HintView::paint (juce::Graphics& g)
+{
+    auto r = getLocalBounds();
+    g.setColour (Colours::panelEdge);
+    g.drawHorizontalLine (0, 0.0f, (float) getWidth());
+    r.removeFromTop (3);
+
+    const int rowH = r.getHeight() / 2;
+    for (const auto& h : hints)
+    {
+        auto row = r.removeFromTop (rowH);
+        const auto colour = h.severity >= 2 ? Colours::bad : (h.severity == 1 ? Colours::warn : Colours::good);
+        g.setColour (colour);
+        g.fillEllipse (juce::Rectangle<float> (7.0f, 7.0f).withCentre ({ 4.0f, (float) row.getCentreY() }));
+        g.setColour (Colours::text);
+        g.setFont (juce::FontOptions (13.0f));
+        g.drawFittedText (h.text, row.withTrimmedLeft (16), juce::Justification::centredLeft, 1, 0.85f);
+    }
+}
+
+//==============================================================================
 DDRPanel::DDRPanel (DDRAudioProcessor& p)
     : processor (p),
+      place (p.apvts, ParamID::place, "LISTEN ON"),
       car (p.apvts, ParamID::car, "CAR TYPE"),
       road (p.apvts, ParamID::road, "ROAD"),
       speed (p.apvts, ParamID::speed, "SPEED", true),
@@ -309,6 +345,7 @@ DDRPanel::DDRPanel (DDRAudioProcessor& p)
       mono (p.apvts, ParamID::mono, "MONO"),
       levelMatch (p.apvts, ParamID::levelMatch, "LEVEL MATCH"),
       meter (p),
+      hintView (p),
       engine (p.apvts, ParamID::engine, "ENGINE"),
       fan (p.apvts, ParamID::fan, "FAN"),
       noiseAmount (p.apvts, ParamID::noiseAmount, "NOISE"),
@@ -341,11 +378,17 @@ DDRPanel::DDRPanel (DDRAudioProcessor& p)
     basicButton.onClick    = [this] { setAdvanced (false); };
     advancedButton.onClick = [this] { setAdvanced (true); };
 
-    carModeButton.setClickingTogglesState (true);
-    carModeButton.onStateChange = [this] { updateCarModeButton(); };
-    carModeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (p.apvts, ParamID::carMode, carModeButton);
-    addAndMakeVisible (carModeButton);
-    updateCarModeButton();
+    // A/B: two halves of one switch, so you always see which side you are hearing
+    carModeAttachment = std::make_unique<juce::ParameterAttachment> (*p.apvts.getParameter (ParamID::carMode),
+                                                                     [this] (float v) { updateCarModeButton (v > 0.5f); });
+    studioButton.onClick = [this] { carModeAttachment->setValueAsCompleteGesture (0.0f); };
+    carButton.onClick    = [this] { carModeAttachment->setValueAsCompleteGesture (1.0f); };
+    for (auto* b : { &studioButton, &carButton })
+    {
+        b->setClickingTogglesState (false);
+        addAndMakeVisible (*b);
+    }
+    carModeAttachment->sendInitialUpdate();
 
     situationBox.setTextWhenNothingSelected ("Situation...");
     int id = 1;
@@ -399,9 +442,13 @@ DDRPanel::DDRPanel (DDRAudioProcessor& p)
     roadDescription.setColour (juce::Label::textColourId, Colours::dim);
     roadDescription.setJustificationType (juce::Justification::topLeft);
     roadDescription.setMinimumHorizontalScale (1.0f);
+    matchLabel.setFont (juce::FontOptions (11.0f));
+    matchLabel.setColour (juce::Label::textColourId, Colours::dim);
+    matchLabel.setJustificationType (juce::Justification::centred);
 
     for (juce::Component* c : std::initializer_list<juce::Component*> {
-             &car, &road, &speed, &output, &mono, &levelMatch, &carDescription, &roadDescription, &meter, &myCarButton,
+             &place, &car, &road, &speed, &output, &mono, &levelMatch, &carDescription, &roadDescription, &matchLabel,
+             &meter, &hintView, &myCarButton,
              &engine, &fan, &noiseAmount, &window, &noiseOnly,
              &boom, &resonance, &reflections, &seat, &rhd,
              &lowCut, &distortion, &fader, &source, &worn,
@@ -417,8 +464,11 @@ DDRPanel::DDRPanel (DDRAudioProcessor& p)
     road.box.setTooltip ("Road surface. Changes the colour and level of the tyre noise.");
     output.slider.setTooltip ("Final output level.");
     mono.button.setTooltip ("Sum to mono, like many Bluetooth speakers and back-seat listeners hear it.");
-    levelMatch.button.setTooltip ("Keeps CAR mode as loud as STUDIO, so the comparison is fair.");
-    carModeButton.setTooltip ("CAR: hear the simulation. STUDIO: hear your mix untouched. Bypass DDR before you bounce!");
+    levelMatch.button.setTooltip ("Keeps CAR mode as loud as STUDIO (measured like a loudness meter), so louder never wins the A/B.");
+    studioButton.setTooltip ("STUDIO: hear your mix untouched.");
+    carButton.setTooltip ("Hear the car (or the chosen device), level-matched to STUDIO. Bypass DDR before you bounce!");
+    place.box.setTooltip ("Where you listen: in a car, or on a phone speaker, cheap earbuds or a Bluetooth speaker.");
+    matchLabel.setTooltip ("How much Level Match turns the simulation up or down to sound as loud as STUDIO.");
     situationBox.setTooltip ("Quick driving situations: sets speed, road, fan, window and seat.");
     engine.box.setTooltip ("Engine sound. Petrol hums, diesel clatters, electric whines quietly.");
     fan.slider.setTooltip ("Ventilation fan speed. 0 is off.");
@@ -453,10 +503,35 @@ DDRPanel::~DDRPanel()
     setLookAndFeel (nullptr);
 }
 
-void DDRPanel::updateCarModeButton()
+void DDRPanel::updateCarModeButton (bool carOn)
 {
-    carModeButton.setButtonText (carModeButton.getToggleState() ? "CAR" : "STUDIO");
+    carButton.setToggleState (carOn, juce::dontSendNotification);
+    studioButton.setToggleState (! carOn, juce::dontSendNotification);
     repaint (0, 0, getWidth(), 64);
+}
+
+void DDRPanel::updatePlace()
+{
+    const int p = juce::jlimit (0, numPlaces - 1, place.box.getSelectedItemIndex());
+    if (p == shownPlace)
+        return;
+    shownPlace = p;
+
+    static const char* abNames[] { "CAR", "PHONE", "EARBUDS", "BT SPKR" };
+    carButton.setButtonText (abNames[p]);
+
+    // Everything about the car only matters in the car; the noise amount still sets the background noise
+    const bool inCar = p == 0;
+    for (juce::Component* c : std::initializer_list<juce::Component*> {
+             &car, &road, &speed, &roadDescription, &situationBox, &myCarButton,
+             &engine, &fan, &window, &boom, &resonance, &reflections, &seat, &rhd,
+             &lowCut, &distortion, &fader, &source, &worn,
+             &volume, &bass, &treble, &svc, &loudness, &limiter })
+    {
+        c->setEnabled (inCar);
+        c->setAlpha (inCar ? 1.0f : 0.35f);
+    }
+    repaint();
 }
 
 void DDRPanel::setAdvanced (bool shouldBeAdvanced)
@@ -498,6 +573,20 @@ void DDRPanel::showMyCar (bool show)
 
 void DDRPanel::timerCallback()
 {
+    updatePlace();
+
+    const float match = processor.matchDb.load();
+    matchLabel.setText (levelMatch.button.getToggleState()
+                            ? "matched " + juce::String (match > 0.05f ? "+" : "") + juce::String (match, 1) + " dB"
+                            : juce::String ("not matched"),
+                        juce::dontSendNotification);
+
+    if (++hintTick >= 8)   // about four times a second
+    {
+        hintTick = 0;
+        hintView.refresh();
+    }
+
     const int carIndex = juce::jlimit (0, myCarIndex, car.box.getSelectedItemIndex());
     if (carIndex == myCarIndex)
     {
@@ -511,6 +600,8 @@ void DDRPanel::timerCallback()
     }
     else
         carDescription.setText (carDescriptions[carIndex], juce::dontSendNotification);
+    if (shownPlace > 0)
+        carDescription.setText (placeDescriptions[shownPlace], juce::dontSendNotification);
     const int roadIndex = juce::jlimit (0, 4, road.box.getSelectedItemIndex());
     roadDescription.setText (roadDescriptions[roadIndex], juce::dontSendNotification);
 
@@ -578,11 +669,12 @@ void DDRPanel::paint (juce::Graphics& g)
     g.drawText ("v" JucePlugin_VersionString, margin + 268, 20, 60, 16, juce::Justification::centredLeft);
    #endif
 
-    if (carModeButton.getToggleState())
+    if (carModeOn())
     {
         g.setColour (Colours::accent.withAlpha (0.85f));
         g.setFont (juce::FontOptions (11.0f));
-        g.drawText ("Car mode is on. Bypass DDR before you bounce!", margin + 84, 36, 300, 14, juce::Justification::centredLeft);
+        g.drawText (juce::String (shownPlace > 0 ? "Device" : "Car") + " mode is on. Bypass DDR before you bounce!",
+                    margin + 84, 36, 300, 14, juce::Justification::centredLeft);
     }
 
     drawPanel (g, basicPanel, "THE DRIVE", retro);
@@ -602,23 +694,27 @@ void DDRPanel::resized()
 
     // header
     auto header = area.removeFromTop (64).withTrimmedTop (14).withTrimmedBottom (10);
-    carModeButton.setBounds (header.removeFromRight (120));
+    carButton.setBounds (header.removeFromRight (78));
+    header.removeFromRight (4);
+    studioButton.setBounds (header.removeFromRight (78));
     header.removeFromRight (12);
-    situationBox.setBounds (header.removeFromRight (170).reduced (0, 2));
+    situationBox.setBounds (header.removeFromRight (150).reduced (0, 2));
     header.removeFromRight (12);
     advancedButton.setBounds (header.removeFromRight (104));
     header.removeFromRight (6);
     basicButton.setBounds (header.removeFromRight (80));
 
     // the drive: car, speed, road, output
-    basicPanel = area.removeFromTop (232);
+    basicPanel = area.removeFromTop (262);
     auto inner = basicPanel.reduced (14, 10).withTrimmedTop (22);
 
     auto carCol = inner.removeFromLeft (250);
-    car.setBounds (carCol.removeFromTop (60));
-    carCol.removeFromTop (10);
-    carDescription.setBounds (carCol.removeFromTop (70));
+    place.setBounds (carCol.removeFromTop (56));
+    carCol.removeFromTop (6);
+    car.setBounds (carCol.removeFromTop (56));
+    carCol.removeFromTop (6);
     myCarButton.setBounds (carCol.removeFromBottom (26).withWidth (170));
+    carDescription.setBounds (carCol);
 
     inner.removeFromLeft (16);
     auto outCol = inner.removeFromRight (130);
@@ -627,6 +723,7 @@ void DDRPanel::resized()
     mono.setBounds (outCol.removeFromTop (28));
     outCol.removeFromTop (8);
     levelMatch.setBounds (outCol.removeFromTop (28));
+    matchLabel.setBounds (outCol.removeFromTop (20));
 
     inner.removeFromRight (16);
     auto roadCol = inner.removeFromRight (200);
@@ -686,8 +783,10 @@ void DDRPanel::resized()
     if (myCarPanel != nullptr)
         myCarPanel->setBounds (getLocalBounds());
 
-    meterPanel = area.removeFromTop (110);
-    meter.setBounds (meterPanel.reduced (14, 8).withTrimmedTop (22));
+    meterPanel = area.removeFromTop (150);
+    auto meterArea = meterPanel.reduced (14, 8).withTrimmedTop (22);
+    hintView.setBounds (meterArea.removeFromBottom (40));
+    meter.setBounds (meterArea);
     zoomBox.setBounds (meterPanel.getRight() - 14 - 84, meterPanel.getY() + 6, 84, 22);
     skinBox.setBounds (zoomBox.getX() - 8 - 110, zoomBox.getY(), 110, 22);
 }

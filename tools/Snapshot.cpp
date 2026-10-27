@@ -114,6 +114,13 @@ int main (int argc, char* argv[])
             setParam (processor, ddr::ParamID::window, (float) (carIdx % 2));
             runAudio (processor, sr, 20, pos, nullptr, &finite);
         }
+    // ...and every listening place, switched while the music plays
+    for (int placeIdx : { 1, 2, 3, 0, 3, 1 })
+    {
+        setParam (processor, ddr::ParamID::place, (float) placeIdx);
+        runAudio (processor, sr, 40, pos, nullptr, &finite);
+    }
+    setParam (processor, ddr::ParamID::place, 0.0f);
     std::printf ("sweep finite: %s\n", finite ? "yes" : "NO");
 
     // Robustness: other sample rates, odd block sizes, and CPU cost
@@ -251,6 +258,60 @@ int main (int argc, char* argv[])
                      processor.meters[2].music.load(), processor.meters[2].noise.load());
     }
 
+    // Mix hints and level match, in the car at a few speeds and on the other devices
+    {
+        ddr::HintEngine hints;
+        auto printHints = [&] (const char* what)
+        {
+            const auto h = processor.getHintLevels();
+            std::printf ("%s: matched %+.1f dB | dry/music/noise dB:", what, (double) processor.matchDb.load());
+            static const char* bandNames[] { "sub", "bass", "mid", "vocal", "air" };
+            for (size_t b = 0; b < (size_t) ddr::numHintBands; ++b)
+                std::printf (" %s %.0f/%.0f/%.0f", bandNames[b], (double) h.dry[b], (double) h.music[b], (double) h.noise[b]);
+            std::printf ("\n");
+            for (auto& hint : hints.make (h, processor.readSettings(), processor.getPlace()))
+                std::printf ("    [%d] %s\n", hint.severity, hint.text.toRawUTF8());
+        };
+        for (float kmh : { 50.0f, 100.0f, 130.0f })
+        {
+            setParam (processor, ddr::ParamID::speed, kmh);
+            runAudio (processor, sr, 400, pos);
+            printHints ((juce::String ("car at ") + juce::String (kmh, 0) + " km/h").toRawUTF8());
+        }
+        {
+            // the same mix with the vocal and the bass 12 dB quieter: now they should go under at some speed
+            auto quiet = processor.getHintLevels();
+            quiet.music[ddr::vocalBand] -= 12.0f;
+            quiet.music[ddr::bassBand] -= 12.0f;
+            auto s = processor.readSettings();
+            for (float kmh : { 60.0f, 130.0f })
+            {
+                s.speedKmh = kmh;
+                std::printf ("quieter vocal and bass at %.0f km/h:\n", (double) kmh);
+                for (auto& hint : hints.make (quiet, s, ddr::Place::car))
+                    std::printf ("    [%d] %s\n", hint.severity, hint.text.toRawUTF8());
+            }
+        }
+        const auto curve = hints.noiseBySpeed();
+        std::printf ("noise by speed (vocal band): 0 %.0f, 50 %.0f, 100 %.0f, 140 %.0f dBFS\n",
+                     curve[0][ddr::vocalBand], curve[5][ddr::vocalBand], curve[10][ddr::vocalBand], curve[14][ddr::vocalBand]);
+
+        setParam (processor, ddr::ParamID::speed, 100.0f);
+        for (int placeIdx = 1; placeIdx < ddr::numPlaces; ++placeIdx)
+        {
+            setParam (processor, ddr::ParamID::place, (float) placeIdx);
+            double out = 0.0;
+            runAudio (processor, sr, 400, pos, &out);
+            printHints ((ddr::placeNames()[placeIdx] + ", output " + juce::String (out, 1) + " dBFS").toRawUTF8());
+            setParam (processor, ddr::ParamID::noiseOnly, 1.0f);
+            runAudio (processor, sr, 200, pos, &out);
+            std::printf ("    background noise alone: %.1f dBFS\n", out);
+            setParam (processor, ddr::ParamID::noiseOnly, 0.0f);
+        }
+        setParam (processor, ddr::ParamID::place, 0.0f);
+        runAudio (processor, sr, 100, pos);
+    }
+
     // Noise only at 100 km/h, so the level of the "mökä" itself is visible
     setParam (processor, ddr::ParamID::speed, 100.0f);
     setParam (processor, ddr::ParamID::noiseOnly, 1.0f);
@@ -279,12 +340,29 @@ int main (int argc, char* argv[])
     {
         ddrEditor->setAdvanced (advanced);
         runAudio (processor, sr, 20, pos);
+        ddrEditor->getPanel().refreshNow();
         auto image = editor->createComponentSnapshot (editor->getLocalBounds(), true, 2.0f);
         auto file = outDir.getChildFile (advanced ? "ddr-advanced.png" : "ddr-basic.png");
         file.deleteFile();
         juce::FileOutputStream stream (file);
         juce::PNGImageFormat().writeImageToStream (image, stream);
         std::printf ("wrote %s\n", file.getFullPathName().toRawUTF8());
+    }
+
+    {
+        // a device place, so its look (dimmed car controls) is checked too
+        ddrEditor->setAdvanced (false);
+        setParam (processor, ddr::ParamID::place, 3.0f);
+        runAudio (processor, sr, 200, pos);
+        ddrEditor->getPanel().refreshNow();
+        auto image = editor->createComponentSnapshot (editor->getLocalBounds(), true, 2.0f);
+        auto file = outDir.getChildFile ("ddr-places.png");
+        file.deleteFile();
+        juce::FileOutputStream stream (file);
+        juce::PNGImageFormat().writeImageToStream (image, stream);
+        std::printf ("wrote %s\n", file.getFullPathName().toRawUTF8());
+        setParam (processor, ddr::ParamID::place, 0.0f);
+        runAudio (processor, sr, 50, pos);
     }
 
     {

@@ -15,6 +15,7 @@ namespace ParamID
     inline constexpr const char* output      = "output";
     inline constexpr const char* mono        = "mono";
     inline constexpr const char* levelMatch  = "levelMatch";
+    inline constexpr const char* place       = "place";
 
     // Advanced: driving & noise
     inline constexpr const char* engine      = "engine";
@@ -80,6 +81,7 @@ inline constexpr int myCarIndex = 6;
 
 const std::array<CarProfile, 6>& carProfiles();
 juce::StringArray carNames();   // the presets plus "My Car"
+juce::StringArray placeNames();
 juce::StringArray roadNames();
 juce::StringArray engineNames();
 juce::StringArray seatNames();
