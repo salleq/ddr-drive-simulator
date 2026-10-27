@@ -35,6 +35,13 @@ jobs:
             os: ubuntu-22.04
             pluginval_url: https://github.com/Tracktion/pluginval/releases/download/v1.0.4/pluginval_Linux.zip
             pluginval_bin: pluginval
+          # ARM: pluginval has no ARM builds for Windows or Linux, so these run DDR's own self test instead
+          - name: Windows-ARM64
+            os: windows-11-arm
+            selftest: true
+          - name: Linux-ARM64
+            os: ubuntu-22.04-arm
+            selftest: true
 
     steps:
       - uses: actions/checkout@v4
@@ -47,13 +54,14 @@ jobs:
             libxcursor-dev libxext-dev libxcomposite-dev libfreetype-dev libfontconfig1-dev xvfb
 
       - name: Configure
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DDDR_BUILD_TOOLS=${{ matrix.selftest && 'ON' || 'OFF' }}
 
       - name: Build
         shell: bash
         run: |
           targets="DDR_VST3"
           if [ "$RUNNER_OS" = "macOS" ]; then targets="DDR_VST3 DDR_AU"; fi
+          if [ "${{ matrix.selftest }}" = "true" ]; then targets="$targets ddr_snapshot"; fi
           cmake --build build --config Release --target $targets --parallel 4
 
       - name: Find the plugin
@@ -72,7 +80,15 @@ jobs:
           codesign --force --deep --sign - "${{ steps.plugin.outputs.path }}"
           codesign --force --deep --sign - "${{ steps.plugin.outputs.au }}"
 
+      - name: Self test (stability sweep, STUDIO transparency, state)
+        if: matrix.selftest
+        shell: bash
+        run: |
+          exe=$(find build -type f \( -name ddr_snapshot -o -name ddr_snapshot.exe \) -path "*Release*" | head -1)
+          "$exe" selftest
+
       - name: Validate with pluginval
+        if: matrix.pluginval_url
         shell: bash
         run: |
           curl -sSL -o pluginval.zip "${{ matrix.pluginval_url }}"

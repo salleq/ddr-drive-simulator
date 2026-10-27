@@ -56,7 +56,7 @@ Tips: *Back Seat* and *Mono* show what the kids and Bluetooth speakers hear. *Vo
 
 ## Download and install
 
-Get the latest zip for Windows, macOS or Linux (x64) from the [Releases page](https://github.com/salleq/ddr-drive-simulator/releases). Install instructions are in `INSTALL.txt` inside the zip ([read it here](docs/INSTALL.txt)).
+Get the latest zip for Windows (x64 or ARM64), macOS (universal: Apple Silicon and Intel) or Linux (x64 or ARM64) from the [Releases page](https://github.com/salleq/ddr-drive-simulator/releases). Install instructions are in `INSTALL.txt` inside the zip ([read it here](docs/INSTALL.txt)).
 
 macOS users: the plugin is not notarized yet, so you need to run one Terminal command once (see INSTALL.txt).
 
