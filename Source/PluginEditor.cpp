@@ -6,8 +6,9 @@ using namespace ddr;
 namespace
 {
     constexpr int editorWidth    = 880;
-    constexpr int basicHeight    = 500;
-    constexpr int advancedHeight = 782;
+    constexpr int refHeight      = 142;   // the reference tracks panel and the gap above it
+    constexpr int basicHeight    = 500 + refHeight;
+    constexpr int advancedHeight = 782 + refHeight;
     constexpr int margin         = 16;
 
     const char* carDescriptions[] {
@@ -346,6 +347,7 @@ DDRPanel::DDRPanel (DDRAudioProcessor& p)
       levelMatch (p.apvts, ParamID::levelMatch, "LEVEL MATCH"),
       meter (p),
       hintView (p),
+      refStrip (p.references),
       engine (p.apvts, ParamID::engine, "ENGINE"),
       fan (p.apvts, ParamID::fan, "FAN"),
       noiseAmount (p.apvts, ParamID::noiseAmount, "NOISE"),
@@ -448,7 +450,7 @@ DDRPanel::DDRPanel (DDRAudioProcessor& p)
 
     for (juce::Component* c : std::initializer_list<juce::Component*> {
              &place, &car, &road, &speed, &output, &mono, &levelMatch, &carDescription, &roadDescription, &matchLabel,
-             &meter, &hintView, &myCarButton,
+             &meter, &hintView, &myCarButton, &refStrip,
              &engine, &fan, &noiseAmount, &window, &noiseOnly,
              &boom, &resonance, &reflections, &seat, &rhd,
              &lowCut, &distortion, &fader, &source, &worn,
@@ -456,6 +458,8 @@ DDRPanel::DDRPanel (DDRAudioProcessor& p)
         addAndMakeVisible (c);
 
     myCarButton.onClick = [this] { showMyCar (true); };
+    refStrip.onOpen = [this] (int slot) { showReference (slot); };
+    refStrip.mixLoudness = [this] { return processor.getMixLoudness(); };
     myCarButton.setTooltip ("Measure your own car with a phone and hear your mix through it (car type \"My Car\").");
 
     // Tooltips: hover any control to see what it does
@@ -571,6 +575,24 @@ void DDRPanel::showMyCar (bool show)
     }
 }
 
+void DDRPanel::showReference (int slot)
+{
+    if (slot >= 0 && refDetail == nullptr)
+    {
+        refDetail = std::make_unique<RefDetailPanel> (processor.references, slot);
+        refDetail->onClose = [this] { showReference (-1); };
+        addChildComponent (*refDetail);
+        refDetail->setBounds (getLocalBounds());
+    }
+    if (refDetail != nullptr)
+    {
+        if (slot >= 0)
+            refDetail->setSlot (slot);
+        refDetail->setVisible (slot >= 0);
+        if (slot >= 0) refDetail->toFront (false);
+    }
+}
+
 void DDRPanel::timerCallback()
 {
     updatePlace();
@@ -679,6 +701,7 @@ void DDRPanel::paint (juce::Graphics& g)
 
     drawPanel (g, basicPanel, "THE DRIVE", retro);
     drawPanel (g, meterPanel, "CAN YOU STILL HEAR IT?  music vs. noise", retro);
+    drawPanel (g, refPanel, "REFERENCE TRACKS", retro);
 
     if (advanced)
     {
@@ -782,6 +805,8 @@ void DDRPanel::resized()
 
     if (myCarPanel != nullptr)
         myCarPanel->setBounds (getLocalBounds());
+    if (refDetail != nullptr)
+        refDetail->setBounds (getLocalBounds());
 
     meterPanel = area.removeFromTop (150);
     auto meterArea = meterPanel.reduced (14, 8).withTrimmedTop (22);
@@ -789,6 +814,10 @@ void DDRPanel::resized()
     meter.setBounds (meterArea);
     zoomBox.setBounds (meterPanel.getRight() - 14 - 84, meterPanel.getY() + 6, 84, 22);
     skinBox.setBounds (zoomBox.getX() - 8 - 110, zoomBox.getY(), 110, 22);
+
+    area.removeFromTop (10);
+    refPanel = area.removeFromTop (refHeight - 10);
+    refStrip.setBounds (refPanel.reduced (14, 8).withTrimmedBottom (2));
 }
 
 //==============================================================================

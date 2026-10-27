@@ -3,6 +3,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "PluginProcessor.h"
 #include "calibration/CalibrationPanel.h"
+#include "reference/ReferenceViews.h"
 
 namespace ddr
 {
@@ -114,8 +115,12 @@ public:
     void showMyCar (bool show);
     ddr::CalibrationPanel* getMyCarPanel() { return myCarPanel.get(); }
 
+    /** Opens the big view of a reference track (slot), or closes it (-1). */
+    void showReference (int slot);
+    ddr::RefDetailPanel* getReferencePanel() { return refDetail.get(); }
+
     /** Updates the readouts and hints at once instead of on the next timer ticks (for screenshots). */
-    void refreshNow() { hintTick = 1000; timerCallback(); }
+    void refreshNow() { hintTick = 1000; timerCallback(); refStrip.refresh(); }
 
 private:
     void timerCallback() override;
@@ -145,6 +150,8 @@ private:
     std::unique_ptr<ddr::CalibrationPanel> myCarPanel;
     ddr::MaskingMeter meter;
     ddr::HintView hintView;
+    ddr::ReferenceStrip refStrip;
+    std::unique_ptr<ddr::RefDetailPanel> refDetail;
     int hintTick = 0, shownPlace = -1;
 
     // advanced: driving
@@ -165,7 +172,7 @@ private:
     ddr::Toggle loudness, limiter;
 
     bool advanced = false;
-    juce::Rectangle<int> basicPanel, meterPanel;
+    juce::Rectangle<int> basicPanel, meterPanel, refPanel;
     std::array<juce::Rectangle<int>, 4> groupPanels;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DDRPanel)

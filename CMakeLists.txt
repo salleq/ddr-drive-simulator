@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(DDR VERSION 0.2.0 LANGUAGES C CXX)
+project(DDR VERSION 0.3.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -62,7 +62,9 @@ target_sources(DDR PRIVATE
     Source/dsp/Places.cpp
     Source/MixHints.cpp
     Source/calibration/Calibration.cpp
-    Source/calibration/CalibrationPanel.cpp)
+    Source/calibration/CalibrationPanel.cpp
+    Source/reference/ReferencePlayer.cpp
+    Source/reference/ReferenceViews.cpp)
 
 target_include_directories(DDR PRIVATE Source)
 
@@ -97,7 +99,9 @@ if(DDR_BUILD_TOOLS)
         Source/dsp/Places.cpp
         Source/MixHints.cpp
         Source/calibration/Calibration.cpp
-        Source/calibration/CalibrationPanel.cpp)
+        Source/calibration/CalibrationPanel.cpp
+        Source/reference/ReferencePlayer.cpp
+        Source/reference/ReferenceViews.cpp)
     target_include_directories(ddr_snapshot PRIVATE Source)
     target_compile_definitions(ddr_snapshot PRIVATE
         JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_USE_MP3AUDIOFORMAT=1 JucePlugin_Name="DDR")

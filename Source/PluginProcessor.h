@@ -7,6 +7,7 @@
 #include "calibration/Calibration.h"
 #include "dsp/Places.h"
 #include "MixHints.h"
+#include "reference/ReferencePlayer.h"
 #include <atomic>
 
 class DDRAudioProcessor : public juce::AudioProcessor
@@ -67,6 +68,12 @@ public:
     static juce::File myCarFile();
     static inline bool useMyCarFile = true;   // the test tools switch this off
 
+    /** Reference tracks: they play through DDR in place of the mix. */
+    ddr::ReferencePlayer references;
+
+    /** The mix's loudness (LUFS, about the last 10 s it played), or below -90 when not heard yet. */
+    float getMixLoudness() const noexcept { return mixLufs.load(); }
+
 private:
     void loadMyCar();
 
@@ -96,6 +103,11 @@ private:
     std::atomic<float> hintDryTotalDb { -100.0f }, hintMusicTotalDb { -100.0f };
 
     juce::AudioBuffer<float> dry, wet, noiseBuf;
+
+    // the mix's own loudness, measured while no reference plays
+    double mixPower = 0.0, mixSeconds = 0.0;
+    std::atomic<float> mixLufs { -100.0f };
+    bool refWasActive = false;
 
     double sr = 44100.0;
     double inPower = 0.0, wetPower = 0.0, powerCoef = 0.0;

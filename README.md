@@ -46,6 +46,18 @@ DDR simulates all of these.
 
 The car presets are educated guesses at typical stock systems, not measurements of any specific car.
 
+## Reference tracks
+
+Load up to two reference songs under **Reference tracks** (click a card, or drop an audio file on it: WAV, AIFF, FLAC, MP3 or OGG). A reference plays **through DDR in place of your mix**, so you hear how a song you love sounds in the same car, at the same speed, on the same road, or on the phone and earbuds.
+
+- **Play / pause** with the round button on the card. The reference plays even while your DAW is stopped (if nothing plays, start the DAW: some hosts, like Logic, pause plugins on a stopped track). Pause it and your mix comes back.
+- **Jump** by clicking or dragging the small waveform.
+- **Loop**: click the name to open the big view, drag across the waveform to mark a loop, and drag its edges to fine-tune. Go **BACK** and the loop stays: the card's play button now plays the loop. **LOOP ON/OFF** keeps the loop but plays the whole song.
+- **Match to mix** (on by default) plays the reference as loud as your mix (measured over the last 10 seconds it played), so you compare the sound, not the level. Play your mix first.
+- The project remembers the files and loops. The audio itself isn't stored in the project, so keep the files where they are.
+
+![Reference big view](docs/ddr-reference.png)
+
 ## My Car: measure your own car with a phone
 
 Play DDR's test signal in your car, record it with your phone, and load the recording in DDR (**MEASURE MY CAR…** under the car type). DDR finds the sweeps, works out your car's frequency response and fits a car profile to it. Record the same signal at your mixing position too and DDR also cancels out the phone's microphone and your monitors. No measurement microphone needed.
@@ -63,7 +75,8 @@ Step-by-step instructions: **[docs/MY-CAR.md](docs/MY-CAR.md)**. Test signal: [D
 5. Read the **mix hints**, then flip **STUDIO / CAR** (it is level-matched, so louder never "wins") and fix the mix, not the plugin.
 6. Try **City** and **Parked** too: quiet passages and fade-outs disappear first at speed, while the cabin boom is most obvious when parked.
 7. Switch **Listen on** to the phone, earbuds and Bluetooth speaker for a last check.
-8. **Bypass DDR before you bounce.** The header reminds you while CAR mode is on.
+8. Play a **reference track** at the same settings: does your vocal sit like theirs at 100 km/h?
+9. **Bypass DDR before you bounce.** The header reminds you while CAR mode is on.
 
 Tips: *Back Seat* and *Mono* show what the kids and Bluetooth speakers hear. *Volume* at 30+ shows how the stock amp and speakers fall apart when people crank it. The noise stops when your DAW's transport stops.
 
