@@ -1,0 +1,156 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# a newer push to the same branch cancels the older, still running build
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            os: macos-14
+            pluginval_url: https://github.com/Tracktion/pluginval/releases/download/v1.0.4/pluginval_macOS.zip
+            pluginval_bin: pluginval.app/Contents/MacOS/pluginval
+          - name: Windows
+            os: windows-2022
+            pluginval_url: https://github.com/Tracktion/pluginval/releases/download/v1.0.4/pluginval_Windows.zip
+            pluginval_bin: pluginval.exe
+          - name: Linux
+            os: ubuntu-22.04
+            pluginval_url: https://github.com/Tracktion/pluginval/releases/download/v1.0.4/pluginval_Linux.zip
+            pluginval_bin: pluginval
+          # ARM: pluginval has no ARM builds for Windows or Linux, so these run DDR's own self test instead
+          - name: Windows-ARM64
+            os: windows-11-arm
+            selftest: true
+          - name: Linux-ARM64
+            os: ubuntu-22.04-arm
+            selftest: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libx11-dev libxrandr-dev libxinerama-dev \
+            libxcursor-dev libxext-dev libxcomposite-dev libfreetype-dev libfontconfig1-dev xvfb
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DDDR_BUILD_TOOLS=${{ matrix.selftest && 'ON' || 'OFF' }}
+
+      - name: Build
+        shell: bash
+        run: |
+          targets="DDR_VST3"
+          if [ "$RUNNER_OS" = "macOS" ]; then targets="DDR_VST3 DDR_AU"; fi
+          if [ "${{ matrix.selftest }}" = "true" ]; then targets="$targets ddr_snapshot"; fi
+          cmake --build build --config Release --target $targets --parallel 4
+
+      - name: Find the plugin
+        id: plugin
+        shell: bash
+        run: |
+          path=$(find build -type d -name "DDR Drive Simulator.vst3" -path "*Release*" | head -1)
+          echo "Found: $path"
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+          au=$(find build -type d -name "DDR Drive Simulator.component" -path "*Release*" | head -1)
+          echo "au=$au" >> "$GITHUB_OUTPUT"
+
+      - name: Ad-hoc sign (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          codesign --force --deep --sign - "${{ steps.plugin.outputs.path }}"
+          codesign --force --deep --sign - "${{ steps.plugin.outputs.au }}"
+
+      - name: Self test (stability sweep, STUDIO transparency, state)
+        if: matrix.selftest
+        shell: bash
+        run: |
+          exe=$(find build -type f \( -name ddr_snapshot -o -name ddr_snapshot.exe \) -path "*Release*" | head -1)
+          "$exe" selftest
+
+      - name: Validate with pluginval
+        if: matrix.pluginval_url
+        shell: bash
+        run: |
+          curl -sSL -o pluginval.zip "${{ matrix.pluginval_url }}"
+          unzip -q pluginval.zip
+          chmod +x ./${{ matrix.pluginval_bin }} || true
+          run=""
+          if [ "$RUNNER_OS" = "Linux" ]; then run="xvfb-run -a"; fi
+          $run ./${{ matrix.pluginval_bin }} --strictness-level 5 --validate-in-process --skip-gui-tests \
+            --timeout-ms 300000 --validate "${{ steps.plugin.outputs.path }}"
+
+      - name: Package
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp -R "${{ steps.plugin.outputs.path }}" dist/
+          if [ -n "${{ steps.plugin.outputs.au }}" ]; then cp -R "${{ steps.plugin.outputs.au }}" dist/; fi
+          cp docs/INSTALL.txt dist/
+          cd dist
+          if [ "$RUNNER_OS" != "Windows" ]; then
+            zip -qry "../DDR-${{ matrix.name }}.zip" .
+          else
+            7z a -tzip "../DDR-${{ matrix.name }}.zip" . > /dev/null
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DDR-${{ matrix.name }}
+          path: DDR-${{ matrix.name }}.zip
+
+  test:
+    name: Stability test and screenshots
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libx11-dev libxrandr-dev libxinerama-dev \
+            libxcursor-dev libxext-dev libxcomposite-dev libfreetype-dev libfontconfig1-dev
+      - name: Build tools
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DDDR_BUILD_TOOLS=ON
+          cmake --build build --target ddr_snapshot ddr_analyze --parallel 4
+      - name: Run stability sweep and render the UI
+        run: ./build/ddr_snapshot_artefacts/Release/ddr_snapshot screenshots
+      - name: Frequency responses and noise spectra
+        run: ./build/ddr_analyze_artefacts/Release/ddr_analyze
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: screenshots/*.png
+
+  release:
+    name: Release
+    needs: [build, test]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*.zip
+          generate_release_notes: true

@@ -12,37 +12,37 @@ const std::array<CarProfile, 6>& carProfiles()
           70.0f, 0.9f, {{ { 180.0f, 1.2f, 2.5f }, { 1900.0f, 2.0f, 3.5f }, { 3600.0f, 3.0f, -5.0f }, { 7000.0f, 1.5f, 2.0f } }},
           16000.0f, 0.40f, false,
           55.0f, 9.0f, {{ { 68.0f, 6.0f, 5.0f }, { 112.0f, 7.0f, -6.0f }, { 155.0f, 6.0f, 4.0f } }},
-          0.60f, 1.45f, -1.0f },
+          0.60f, 1.45f, -1.0f, true },
 
         { "Family Hatchback",
           75.0f, 1.0f, {{ { 220.0f, 1.5f, 3.0f }, { 1600.0f, 1.8f, 4.0f }, { 3200.0f, 3.0f, -6.0f }, { 6500.0f, 1.5f, 1.5f } }},
           15000.0f, 0.50f, false,
           62.0f, 8.0f, {{ { 74.0f, 6.0f, 5.0f }, { 120.0f, 7.0f, -6.0f }, { 165.0f, 6.0f, 4.0f } }},
-          0.65f, 1.42f, 0.0f },
+          0.65f, 1.42f, 0.0f, true },
 
         { "Old Family Car",
           85.0f, 1.2f, {{ { 250.0f, 1.4f, 3.5f }, { 1400.0f, 1.6f, 5.0f }, { 3000.0f, 2.5f, -7.0f }, { 5500.0f, 1.2f, -3.0f } }},
-          12000.0f, 0.75f, true,
+          13000.0f, 0.75f, true,
           62.0f, 8.0f, {{ { 74.0f, 6.0f, 5.0f }, { 118.0f, 7.0f, -7.0f }, { 160.0f, 6.0f, 5.0f } }},
-          0.70f, 1.40f, 3.0f },
+          0.70f, 1.40f, 3.0f, true },
 
         { "City Car",
           100.0f, 1.3f, {{ { 300.0f, 1.4f, 4.0f }, { 1300.0f, 1.6f, 5.0f }, { 2800.0f, 2.5f, -6.0f }, { 6000.0f, 1.5f, 3.0f } }},
           13000.0f, 0.80f, false,
           72.0f, 10.0f, {{ { 85.0f, 6.0f, 6.0f }, { 135.0f, 7.0f, -7.0f }, { 190.0f, 6.0f, 5.0f } }},
-          0.80f, 1.30f, 4.0f },
+          0.80f, 1.30f, 4.0f, false },
 
         { "Family SUV",
           65.0f, 0.9f, {{ { 160.0f, 1.2f, 3.0f }, { 2000.0f, 2.0f, 3.0f }, { 3800.0f, 3.0f, -5.0f }, { 7500.0f, 1.5f, 2.0f } }},
           16000.0f, 0.40f, false,
           48.0f, 8.0f, {{ { 58.0f, 6.0f, 4.0f }, { 98.0f, 7.0f, -5.0f }, { 140.0f, 6.0f, 4.0f } }},
-          0.50f, 1.55f, 0.0f },
+          0.50f, 1.55f, 0.0f, true },
 
         { "Premium Sedan",
           32.0f, 0.7f, {{ { 90.0f, 1.0f, 2.0f }, { 2500.0f, 1.5f, 1.0f }, { 4500.0f, 2.0f, -1.5f }, { 10000.0f, 1.0f, 1.0f } }},
           19000.0f, 0.15f, false,
           50.0f, 5.0f, {{ { 60.0f, 5.0f, 2.0f }, { 105.0f, 6.0f, -2.0f }, { 150.0f, 5.0f, 1.5f } }},
-          0.40f, 1.48f, -6.0f },
+          0.40f, 1.48f, -6.0f, true },
     }};
     return profiles;
 }
@@ -128,6 +128,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
         ParameterID { ParamID::distortion, 1 }, "Cone Distortion", NormalisableRange<float> (0.0f, 200.0f, 1.0f), 100.0f, percent));
     addBool (ParamID::worn, "Worn Speakers", false);
     addChoice (ParamID::source, "Source", sourceNames(), (int) Source::usb);
+    layout.add (std::make_unique<AudioParameterFloat> (
+        ParameterID { ParamID::fader, 1 }, "Fader", NormalisableRange<float> (-100.0f, 100.0f, 1.0f), 0.0f,
+        AudioParameterFloatAttributes().withStringFromValueFunction ([] (float v, int)
+        {
+            const int i = roundToInt (v);
+            return i == 0 ? String ("Centre") : (i < 0 ? "Front " + String (-i) : "Rear " + String (i));
+        })));
 
     // Head unit
     layout.add (std::make_unique<AudioParameterInt> (ParameterID { ParamID::volume, 1 }, "Volume", 0, 40, 20));

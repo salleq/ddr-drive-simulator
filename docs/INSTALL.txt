@@ -1,0 +1,43 @@
+DDR - (Dreaded) Drive Simulator
+================================
+
+Free VST3 plugin that lets you hear your mix the way it sounds in a stock family car.
+
+WHICH ZIP?
+  Windows PC (Intel/AMD) ......... DDR-Windows.zip
+  Windows on ARM (Snapdragon) .... DDR-Windows-ARM64.zip
+  Mac (Intel and Apple Silicon) .. DDR-macOS.zip (one universal build for both)
+  Linux PC (x64) ................. DDR-Linux.zip
+  Linux ARM64 (e.g. Raspberry Pi 4/5 64-bit) .. DDR-Linux-ARM64.zip
+  Use the version that matches your DAW: an x64 DAW running in emulation on ARM
+  Windows needs the x64 plugin.
+
+INSTALL ON WINDOWS
+1. Copy the folder "DDR Drive Simulator.vst3" to:
+   C:\Program Files\Common Files\VST3
+2. Rescan plugins in your DAW.
+
+INSTALL ON macOS
+1. Copy "DDR Drive Simulator.vst3" to:
+   /Library/Audio/Plug-Ins/VST3      (all users)
+   or ~/Library/Audio/Plug-Ins/VST3  (just you)
+   Logic Pro / GarageBand use the Audio Unit instead: copy
+   "DDR Drive Simulator.component" to /Library/Audio/Plug-Ins/Components
+2. The plugin is not notarized by Apple, so macOS blocks it at first.
+   Open Terminal and run (each on one line):
+   xattr -dr com.apple.quarantine "/Library/Audio/Plug-Ins/VST3/DDR Drive Simulator.vst3"
+   xattr -dr com.apple.quarantine "/Library/Audio/Plug-Ins/Components/DDR Drive Simulator.component"
+   (change the paths if you used your own Library folder)
+3. Rescan plugins in your DAW.
+
+INSTALL ON LINUX (x64 or ARM64)
+1. Copy "DDR Drive Simulator.vst3" to ~/.vst3 (create the folder if needed)
+   or to /usr/lib/vst3 for all users.
+2. Rescan plugins in your DAW (Reaper, Bitwig, Ardour...).
+
+HOW TO USE
+Put DDR as the LAST plugin on your master bus. Pick a car, a speed and a road.
+Press CAR / STUDIO to compare. Remember to switch it off (or bypass it) before you bounce!
+
+Source code and updates: https://github.com/salleq/ddr-drive-simulator
+License: GNU AGPL v3
