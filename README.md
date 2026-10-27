@@ -56,9 +56,20 @@ Tips: *Back Seat* and *Mono* show what the kids and Bluetooth speakers hear. *Vo
 
 ## Download and install
 
-Get the latest zip for Windows (x64 or ARM64), macOS (universal: Apple Silicon and Intel) or Linux (x64 or ARM64) from the [Releases page](https://github.com/salleq/ddr-drive-simulator/releases). Install instructions are in `INSTALL.txt` inside the zip ([read it here](docs/INSTALL.txt)).
+Download from the [Releases page](https://github.com/salleq/ddr-drive-simulator/releases):
 
-macOS users: the plugin is not notarized yet, so you need to run one Terminal command once (see INSTALL.txt).
+| Computer | Easiest | Manual (zip) |
+|---|---|---|
+| Windows PC (Intel/AMD) | `DDR-…-Windows-x64-Setup.exe` | `DDR-Windows.zip` |
+| Windows on ARM (Snapdragon) | `DDR-…-Windows-ARM64-Setup.exe` | `DDR-Windows-ARM64.zip` |
+| Mac (Apple Silicon and Intel) | `DDR-…-macOS-Installer.pkg` | `DDR-macOS.zip` |
+| Linux x64 / ARM64 | – | `DDR-Linux.zip` / `DDR-Linux-ARM64.zip` |
+
+The installers put the plugin in the standard folders, and the Windows one adds an uninstaller. Manual install steps are in `INSTALL.txt` inside each zip ([read it here](docs/INSTALL.txt)).
+
+**macOS:** DDR is free and not notarized by Apple (that needs a paid developer account), so the first time you open the `.pkg` macOS says it can't check it. Open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. You only do this once.
+
+**Windows:** SmartScreen may say "Windows protected your PC" because the installer is not code-signed. Click **More info → Run anyway**.
 
 ## Build it yourself
 

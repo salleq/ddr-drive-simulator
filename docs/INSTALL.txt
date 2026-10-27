@@ -3,6 +3,9 @@ DDR - (Dreaded) Drive Simulator
 
 Free VST3 plugin that lets you hear your mix the way it sounds in a stock family car.
 
+EASIEST: use the installer (.exe on Windows, .pkg on Mac) from the Releases page.
+This zip is for installing by hand.
+
 WHICH ZIP?
   Windows PC (Intel/AMD) ......... DDR-Windows.zip
   Windows on ARM (Snapdragon) .... DDR-Windows-ARM64.zip
