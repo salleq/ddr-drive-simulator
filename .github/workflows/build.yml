@@ -169,7 +169,9 @@ jobs:
       - name: Build tools
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=Release -DDDR_BUILD_TOOLS=ON
-          cmake --build build --target ddr_snapshot ddr_analyze --parallel 4
+          cmake --build build --target ddr_snapshot ddr_analyze ddr_caltest --parallel 4
+      - name: My Car measurement test (simulated car and phone)
+        run: ./build/ddr_caltest_artefacts/Release/ddr_caltest
       - name: Run stability sweep and render the UI
         run: ./build/ddr_snapshot_artefacts/Release/ddr_snapshot screenshots
       - name: Frequency responses and noise spectra

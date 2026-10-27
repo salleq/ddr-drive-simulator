@@ -20,7 +20,7 @@ DDR simulates all of these.
 
 **Basic** – everything most people need:
 
-- **Car type** – Family Wagon, Family Hatchback, Old Family Car, City Car, Family SUV, Premium Sedan (reference)
+- **Car type** – Family Wagon, Family Hatchback, Old Family Car, City Car, Family SUV, Premium Sedan (reference), or **My Car** – your own car, measured with a phone (see below)
 - **Speed** – 0–140 km/h. Raises road, wind and engine noise like a real drive
 - **Road** – Smooth Asphalt, Rough Asphalt, Studded Tyres, Gravel, Wet Road
 - **CAR / STUDIO** – level-matched A/B switch
@@ -41,6 +41,14 @@ DDR simulates all of these.
 | Head unit | Volume (0–40), Bass, Treble, Speed volume (Off / Low / High), Loudness, Limiter |
 
 The car presets are educated guesses at typical stock systems, not measurements of any specific car.
+
+## My Car: measure your own car with a phone
+
+Play DDR's test signal in your car, record it with your phone, and load the recording in DDR (**MEASURE MY CAR…** under the car type). DDR finds the sweeps, works out your car's frequency response and fits a car profile to it. Record the same signal at your mixing position too and DDR also cancels out the phone's microphone and your monitors. No measurement microphone needed.
+
+![My Car screen](docs/ddr-mycar.png)
+
+Step-by-step instructions: **[docs/MY-CAR.md](docs/MY-CAR.md)**. Test signal: [DDR-test-signal.mp3](docs/my-car/DDR-test-signal.mp3) (or save it as WAV from DDR).
 
 ## Quick workflow
 
@@ -90,7 +98,7 @@ cmake --build build --config Release --target DDR_VST3
 Developer extras:
 
 - `-DJUCE_DIR=/path/to/JUCE` uses a local JUCE checkout instead of downloading it
-- `-DDDR_BUILD_TOOLS=ON` builds `ddr_snapshot`, which renders the UI to PNG and runs a quick level and stability check
+- `-DDDR_BUILD_TOOLS=ON` builds `ddr_snapshot`, which renders the UI to PNG and runs a quick level and stability check, and `ddr_caltest`, which tests My Car end to end with a simulated car and phone (`ddr_caltest --analyse recording.wav` prints the measured curve of a real recording)
 
 GitHub Actions builds and validates (pluginval) all three platforms on every push. Pushing a tag like `v0.1.0` publishes a release with the zips.
 

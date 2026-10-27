@@ -56,6 +56,29 @@ namespace
             *lastRms = rmsDb (buf);
     }
 
+    /** "Records" the DDR test signal through one of DDR's own cars, like a phone in that car would. */
+    ddr::cal::Measurement measureThroughDDR (const ddr::CarProfile& car)
+    {
+        const double rate = 48000.0;
+        auto signal = ddr::cal::makeTestSignal (rate);
+        ddr::Settings s;
+        s.car = &car;
+        ddr::MusicChain chain;
+        chain.prepare (rate, 512);
+        chain.update (s);
+        chain.reset();
+        std::vector<float> mono ((size_t) signal.getNumSamples());
+        juce::Random rng (7);
+        for (int start = 0; start < signal.getNumSamples(); start += 512)
+        {
+            const int n = juce::jmin (512, signal.getNumSamples() - start);
+            chain.process (signal.getWritePointer (0, start), signal.getWritePointer (1, start), n);
+        }
+        for (size_t i = 0; i < mono.size(); ++i)
+            mono[i] = 0.2f * (signal.getSample (0, (int) i) + signal.getSample (1, (int) i)) + 0.0005f * (rng.nextFloat() - 0.5f);
+        return ddr::cal::analyse (mono.data(), (int) mono.size(), rate);
+    }
+
     void setParam (DDRAudioProcessor& p, const char* id, float value)
     {
         auto* param = p.apvts.getParameter (id);
@@ -66,6 +89,7 @@ namespace
 int main (int argc, char* argv[])
 {
     juce::ScopedJuceInitialiser_GUI gui;
+    DDRAudioProcessor::useMyCarFile = false; // never touch the real "My Car" of this computer
     const juce::File outDir = argc > 1 ? juce::File::getCurrentWorkingDirectory().getChildFile (argv[1])
                                        : juce::File::getCurrentWorkingDirectory();
     outDir.createDirectory();
@@ -78,7 +102,7 @@ int main (int argc, char* argv[])
     // Sanity sweep: every car, road, seat and source at a few speeds must stay finite.
     bool finite = true;
     int64_t pos = 0;
-    for (int carIdx = 0; carIdx < 6; ++carIdx)
+    for (int carIdx = 0; carIdx <= ddr::myCarIndex; ++carIdx)
         for (int roadIdx = 0; roadIdx < 5; ++roadIdx)
         {
             setParam (processor, ddr::ParamID::car, (float) carIdx);
@@ -180,6 +204,32 @@ int main (int argc, char* argv[])
         finite = finite && transparent && same;
     }
 
+    // My Car: measure the Family Wagon through DDR itself, fit it, and play it back
+    ddr::cal::Measurement myCarMeasurement;
+    {
+        myCarMeasurement = measureThroughDDR (ddr::carProfiles()[0]);
+        const auto target = ddr::cal::makeTarget (myCarMeasurement, nullptr);
+        const auto fit = ddr::cal::fitProfile (target, 0);
+        std::printf ("My Car from the Family Wagon: %s fit error %.2f dB\n", myCarMeasurement.message.toRawUTF8(), (double) fit.errorDb);
+
+        DDRAudioProcessor p6;
+        p6.setPlayConfigDetails (2, 2, sr, 512);
+        p6.prepareToPlay (sr, 512);
+        p6.setMyCar (ddr::cal::toValueTree (fit, target));
+        setParam (p6, ddr::ParamID::car, (float) ddr::myCarIndex);
+        bool myCarOk = myCarMeasurement.ok && fit.errorDb < 2.0f && p6.hasMyCar();
+        int64_t at = 0;
+        runAudio (p6, sr, 100, at, nullptr, &myCarOk);
+
+        juce::MemoryBlock saved;
+        p6.getStateInformation (saved);
+        DDRAudioProcessor p7;
+        p7.setStateInformation (saved.getData(), (int) saved.getSize());
+        myCarOk = myCarOk && p7.hasMyCar();
+        std::printf ("My Car plays and survives a save and load: %s\n", myCarOk ? "yes" : "NO");
+        finite = finite && myCarOk;
+    }
+
     // Reset to defaults for the measurements and the screenshot
     for (auto* param : processor.getParameters())
         if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (param))
@@ -235,6 +285,20 @@ int main (int argc, char* argv[])
         juce::FileOutputStream stream (file);
         juce::PNGImageFormat().writeImageToStream (image, stream);
         std::printf ("wrote %s\n", file.getFullPathName().toRawUTF8());
+    }
+
+    {
+        ddrEditor->setAdvanced (false);
+        auto& panel = ddrEditor->getPanel();
+        panel.showMyCar (true);
+        panel.getMyCarPanel()->showForTesting (myCarMeasurement, nullptr);
+        auto image = editor->createComponentSnapshot (editor->getLocalBounds(), true, 2.0f);
+        auto file = outDir.getChildFile ("ddr-mycar.png");
+        file.deleteFile();
+        juce::FileOutputStream stream (file);
+        juce::PNGImageFormat().writeImageToStream (image, stream);
+        std::printf ("wrote %s\n", file.getFullPathName().toRawUTF8());
+        panel.showMyCar (false);
     }
 
     editor.reset();

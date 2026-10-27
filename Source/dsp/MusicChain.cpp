@@ -66,6 +66,7 @@ void MusicChain::reset()
                      &spkHp1, &spkHp2, &spkTop, &spkWorn, &spkLowBand, &cabBoom, &cabSeatShelf })
         f->reset();
     for (auto& f : spkBands) f.reset();
+    for (auto& f : spkExtra) f.reset();
     for (auto& f : cabModes) f.reset();
 
     std::fill (delayL.begin(), delayL.end(), 0.0f);
@@ -132,6 +133,14 @@ void MusicChain::update (const Settings& s)
     {
         const auto& band = car.speakerBands[i];
         keepState (spkBands[i], [&] (Biquad& b) { b.setPeak (sr, band.freq, band.q, band.gainDb); });
+    }
+    numExtra = 0;
+    for (size_t i = 0; i < spkExtra.size(); ++i)
+    {
+        const auto& band = car.extraBands[i];
+        if (std::abs (band.gainDb) > 0.01f)
+            numExtra = (int) i + 1;
+        keepState (spkExtra[i], [&] (Biquad& b) { if (std::abs (band.gainDb) > 0.01f) b.setPeak (sr, band.freq, band.q, band.gainDb); else b.setIdentity(); });
     }
     keepState (spkTop,  [&] (Biquad& b) { b.setLowPass (sr, car.topHz * (worn ? 0.85 : 1.0), 0.707); });
     keepState (spkWorn, [&] (Biquad& b) { if (worn) b.setHighShelf (sr, 5000.0, -3.0); else b.setIdentity(); });
@@ -252,6 +261,7 @@ void MusicChain::process (float* left, float* right, int n) noexcept
         l = spkHp1.l.process (l); r = spkHp1.r.process (r);
         l = spkHp2.l.process (l); r = spkHp2.r.process (r);
         for (auto& b : spkBands) { l = b.l.process (l); r = b.r.process (r); }
+        for (int e = 0; e < numExtra; ++e) { l = spkExtra[(size_t) e].l.process (l); r = spkExtra[(size_t) e].r.process (r); }
         l = spkTop.l.process (l);  r = spkTop.r.process (r);
         l = spkWorn.l.process (l); r = spkWorn.r.process (r);
 

@@ -4,6 +4,7 @@
 #include "Parameters.h"
 #include "dsp/MusicChain.h"
 #include "dsp/NoiseGenerator.h"
+#include "calibration/Calibration.h"
 #include <atomic>
 
 class DDRAudioProcessor : public juce::AudioProcessor
@@ -42,8 +43,25 @@ public:
     struct BandMeter { std::atomic<float> music { -100.0f }, noise { -100.0f }; };
     std::array<BandMeter, 3> meters;
 
+    /** "My Car" (message thread only): installs a measured car, stores it in the project and as the
+        default for new DDR instances. An invalid tree removes it from this project. */
+    void setMyCar (const juce::ValueTree& tree);
+    bool hasMyCar() const noexcept { return myCarValid.load(); }
+    juce::ValueTree getMyCar() const { return apvts.state.getChildWithName (ddr::cal::myCarTag); }
+
+    /** Where the last measured car is kept for new projects. */
+    static juce::File myCarFile();
+    static inline bool useMyCarFile = true;   // the test tools switch this off
+
 private:
     ddr::Settings readSettings() const;
+    void loadMyCar();
+
+    // The measured car, double buffered: the audio thread reads one slot while the other is rewritten
+    std::array<ddr::CarProfile, 2> myCarSlots {};
+    std::atomic<int>  myCarSlot { 0 };
+    std::atomic<bool> myCarValid { false };
+    std::atomic<int>  myCarVersion { 0 };
 
     ddr::Settings smoothed, lastApplied;
     ddr::MusicChain music;

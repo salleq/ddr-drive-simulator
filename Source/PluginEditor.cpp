@@ -16,7 +16,8 @@ namespace
         "Fifteen years old. Tired speaker cones, more engine and wind noise.",
         "Small and loud. Little real bass, a strong boom and lots of road noise.",
         "Big, tall cabin. Lower boom and more wind noise at speed.",
-        "The reference: subwoofer, DSP and a quiet cabin. Your mix should shine here."
+        "The reference: subwoofer, DSP and a quiet cabin. Your mix should shine here.",
+        "" // My Car: written in timerCallback
     };
 
     const char* roadDescriptions[] {
@@ -400,12 +401,15 @@ DDRPanel::DDRPanel (DDRAudioProcessor& p)
     roadDescription.setMinimumHorizontalScale (1.0f);
 
     for (juce::Component* c : std::initializer_list<juce::Component*> {
-             &car, &road, &speed, &output, &mono, &levelMatch, &carDescription, &roadDescription, &meter,
+             &car, &road, &speed, &output, &mono, &levelMatch, &carDescription, &roadDescription, &meter, &myCarButton,
              &engine, &fan, &noiseAmount, &window, &noiseOnly,
              &boom, &resonance, &reflections, &seat, &rhd,
              &lowCut, &distortion, &fader, &source, &worn,
              &volume, &bass, &treble, &svc, &loudness, &limiter })
         addAndMakeVisible (c);
+
+    myCarButton.onClick = [this] { showMyCar (true); };
+    myCarButton.setTooltip ("Measure your own car with a phone and hear your mix through it (car type \"My Car\").");
 
     // Tooltips: hover any control to see what it does
     car.box.setTooltip ("The kind of car and its stock audio system.");
@@ -476,10 +480,37 @@ void DDRPanel::setAdvanced (bool shouldBeAdvanced)
         onSizeChanged();
 }
 
+void DDRPanel::showMyCar (bool show)
+{
+    if (show && myCarPanel == nullptr)
+    {
+        myCarPanel = std::make_unique<CalibrationPanel> (processor);
+        myCarPanel->onClose = [this] { showMyCar (false); };
+        addChildComponent (*myCarPanel);
+        myCarPanel->setBounds (getLocalBounds());
+    }
+    if (myCarPanel != nullptr)
+    {
+        myCarPanel->setVisible (show);
+        if (show) myCarPanel->toFront (false);
+    }
+}
+
 void DDRPanel::timerCallback()
 {
-    const int carIndex = juce::jlimit (0, 5, car.box.getSelectedItemIndex());
-    carDescription.setText (carDescriptions[carIndex], juce::dontSendNotification);
+    const int carIndex = juce::jlimit (0, myCarIndex, car.box.getSelectedItemIndex());
+    if (carIndex == myCarIndex)
+    {
+        const auto tree = processor.getMyCar();
+        const int base = juce::jlimit (0, myCarIndex - 1, (int) tree.getProperty ("base", 1));
+        carDescription.setText (processor.hasMyCar()
+            ? "Your own car, measured with a phone on " + tree.getProperty ("date").toString()
+                  + ". Noise and size like the " + juce::String (carProfiles()[(size_t) base].name) + "."
+            : "Not measured yet: click MEASURE MY CAR. Until then this sounds like the Family Hatchback.",
+            juce::dontSendNotification);
+    }
+    else
+        carDescription.setText (carDescriptions[carIndex], juce::dontSendNotification);
     const int roadIndex = juce::jlimit (0, 4, road.box.getSelectedItemIndex());
     roadDescription.setText (roadDescriptions[roadIndex], juce::dontSendNotification);
 
@@ -587,6 +618,7 @@ void DDRPanel::resized()
     car.setBounds (carCol.removeFromTop (60));
     carCol.removeFromTop (10);
     carDescription.setBounds (carCol.removeFromTop (70));
+    myCarButton.setBounds (carCol.removeFromBottom (26).withWidth (170));
 
     inner.removeFromLeft (16);
     auto outCol = inner.removeFromRight (130);
@@ -650,6 +682,9 @@ void DDRPanel::resized()
 
         area.removeFromTop (10);
     }
+
+    if (myCarPanel != nullptr)
+        myCarPanel->setBounds (getLocalBounds());
 
     meterPanel = area.removeFromTop (110);
     meter.setBounds (meterPanel.reduced (14, 8).withTrimmedTop (22));

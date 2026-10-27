@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(DDR VERSION 0.1.0 LANGUAGES C CXX)
+project(DDR VERSION 0.2.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -58,7 +58,9 @@ target_sources(DDR PRIVATE
     Source/PluginEditor.cpp
     Source/Parameters.cpp
     Source/dsp/MusicChain.cpp
-    Source/dsp/NoiseGenerator.cpp)
+    Source/dsp/NoiseGenerator.cpp
+    Source/calibration/Calibration.cpp
+    Source/calibration/CalibrationPanel.cpp)
 
 target_include_directories(DDR PRIVATE Source)
 
@@ -66,6 +68,7 @@ target_compile_definitions(DDR PUBLIC
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
+    JUCE_USE_MP3AUDIOFORMAT=1   # phone recordings for "My Car" may come as MP3
 )
 
 target_link_libraries(DDR
@@ -88,10 +91,12 @@ if(DDR_BUILD_TOOLS)
         Source/PluginEditor.cpp
         Source/Parameters.cpp
         Source/dsp/MusicChain.cpp
-        Source/dsp/NoiseGenerator.cpp)
+        Source/dsp/NoiseGenerator.cpp
+        Source/calibration/Calibration.cpp
+        Source/calibration/CalibrationPanel.cpp)
     target_include_directories(ddr_snapshot PRIVATE Source)
     target_compile_definitions(ddr_snapshot PRIVATE
-        JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JucePlugin_Name="DDR")
+        JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_USE_MP3AUDIOFORMAT=1 JucePlugin_Name="DDR")
     target_link_libraries(ddr_snapshot PRIVATE
         DDRAssets juce::juce_audio_utils juce::juce_dsp
         juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
@@ -102,5 +107,15 @@ if(DDR_BUILD_TOOLS)
     target_compile_definitions(ddr_analyze PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
     target_link_libraries(ddr_analyze PRIVATE
         juce::juce_audio_processors juce::juce_dsp
+        juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+    # End-to-end test of "My Car": simulated car + phone -> analysis -> fitted profile
+    juce_add_console_app(ddr_caltest PRODUCT_NAME "ddr_caltest")
+    target_sources(ddr_caltest PRIVATE tools/CalibrationTest.cpp Source/calibration/Calibration.cpp
+        Source/Parameters.cpp Source/dsp/MusicChain.cpp)
+    target_include_directories(ddr_caltest PRIVATE Source)
+    target_compile_definitions(ddr_caltest PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_USE_MP3AUDIOFORMAT=1)
+    target_link_libraries(ddr_caltest PRIVATE
+        juce::juce_audio_processors juce::juce_audio_formats
         juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
 endif()

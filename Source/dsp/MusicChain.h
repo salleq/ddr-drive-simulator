@@ -38,6 +38,8 @@ private:
     // Speakers
     Stereo spkHp1, spkHp2, spkTop, spkWorn;
     std::array<Stereo, 4> spkBands;
+    std::array<Stereo, 8> spkExtra;  // only a measured car uses these
+    int    numExtra = 0;
     Stereo spkLowBand;         // band that the cone distortion acts on
     float  coneK = 1.0f, coneMix = 0.0f;
     float  rattleAmount = 0.0f, rattleThreshold = 0.22f;

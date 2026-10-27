@@ -71,10 +71,15 @@ struct CarProfile
     // noise
     float insulationDb;    // + = louder cabin
     bool  rearSpeakers;    // rear door speakers as well as front ones
+    // extra speaker EQ bands, only used by a measured car (gain 0 = off)
+    std::array<Band, 8> extraBands {};
 };
 
+/** Index of "My Car" in the car parameter: the car measured with a phone. It comes after the presets. */
+inline constexpr int myCarIndex = 6;
+
 const std::array<CarProfile, 6>& carProfiles();
-juce::StringArray carNames();
+juce::StringArray carNames();   // the presets plus "My Car"
 juce::StringArray roadNames();
 juce::StringArray engineNames();
 juce::StringArray seatNames();
