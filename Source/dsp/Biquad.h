@@ -21,6 +21,16 @@ struct Biquad
         return y;
     }
 
+    /** Magnitude response in dB at frequency f. */
+    double magnitudeDb (double f, double sr) const noexcept
+    {
+        const double w = 2.0 * 3.14159265358979323846 * f / sr;
+        const double c1 = std::cos (w), s1 = std::sin (w), c2 = std::cos (2.0 * w), s2 = std::sin (2.0 * w);
+        const double nr = b0 + b1 * c1 + b2 * c2, ni = -(b1 * s1 + b2 * s2);
+        const double dr = 1.0 + a1 * c1 + a2 * c2, di = -(a1 * s1 + a2 * s2);
+        return 10.0 * std::log10 ((nr * nr + ni * ni) / (dr * dr + di * di) + 1.0e-30);
+    }
+
     void setIdentity() noexcept { b0 = 1.0f; b1 = b2 = a1 = a2 = 0.0f; }
 
     void setLowPass (double sr, double f, double q) noexcept

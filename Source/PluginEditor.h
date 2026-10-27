@@ -2,6 +2,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "PluginProcessor.h"
+#include "calibration/CalibrationPanel.h"
 
 namespace ddr
 {
@@ -94,6 +95,10 @@ public:
     /** Switches between the Basic and Advanced layouts. */
     void setAdvanced (bool shouldBeAdvanced);
 
+    /** Opens the "My Car" measuring screen over the controls. */
+    void showMyCar (bool show);
+    ddr::CalibrationPanel* getMyCarPanel() { return myCarPanel.get(); }
+
 private:
     void timerCallback() override;
     void updateCarModeButton();
@@ -116,6 +121,8 @@ private:
     ddr::Knob   speed, output;
     ddr::Toggle mono, levelMatch;
     juce::Label carDescription, roadDescription;
+    juce::TextButton myCarButton { "MEASURE MY CAR..." };
+    std::unique_ptr<ddr::CalibrationPanel> myCarPanel;
     ddr::MaskingMeter meter;
 
     // advanced: driving
@@ -148,6 +155,7 @@ public:
     explicit DDRAudioProcessorEditor (DDRAudioProcessor&);
     void resized() override {}
     void setAdvanced (bool shouldBeAdvanced) { panel.setAdvanced (shouldBeAdvanced); }
+    DDRPanel& getPanel() { return panel; }
 
     static constexpr float zoomLevels[] { 0.75f, 0.9f, 1.0f, 1.1f, 1.25f, 1.5f };
 

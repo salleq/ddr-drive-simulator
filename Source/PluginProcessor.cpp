@@ -2,6 +2,7 @@
 #include "PluginEditor.h"
 
 using namespace ddr;
+namespace cal = ddr::cal;
 
 DDRAudioProcessor::DDRAudioProcessor()
     : AudioProcessor (BusesProperties()
@@ -19,6 +20,57 @@ DDRAudioProcessor::DDRAudioProcessor()
             p (ParamID::limiter) };
 
     apvts.state.setProperty ("advanced", false, nullptr);
+    loadMyCar();
+}
+
+juce::File DDRAudioProcessor::myCarFile()
+{
+    return juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
+               .getChildFile ("DDR Drive Simulator").getChildFile ("MyCar.xml");
+}
+
+void DDRAudioProcessor::setMyCar (const juce::ValueTree& tree)
+{
+    apvts.state.removeChild (apvts.state.getChildWithName (cal::myCarTag), nullptr);
+    if (tree.isValid())
+    {
+        apvts.state.addChild (tree.createCopy(), -1, nullptr);
+        if (auto xml = tree.createXml(); xml != nullptr && useMyCarFile)
+        {
+            myCarFile().getParentDirectory().createDirectory();
+            xml->writeTo (myCarFile());
+        }
+    }
+    loadMyCar();
+}
+
+void DDRAudioProcessor::loadMyCar()
+{
+    // The project's own measurement wins; a project without one gets the last car measured on this computer
+    auto tree = apvts.state.getChildWithName (cal::myCarTag);
+    if (! tree.isValid() && useMyCarFile)
+        if (auto xml = juce::XmlDocument::parse (myCarFile()))
+        {
+            auto fromFile = juce::ValueTree::fromXml (*xml);
+            ddr::CarProfile check;
+            if (cal::fromValueTree (fromFile, check))
+            {
+                apvts.state.addChild (fromFile, -1, nullptr);
+                tree = fromFile;
+            }
+        }
+
+    const int next = 1 - myCarSlot.load();
+    if (cal::fromValueTree (tree, myCarSlots[(size_t) next]))
+    {
+        myCarSlot.store (next);
+        myCarVersion.fetch_add (1);
+        myCarValid.store (true);
+    }
+    else
+    {
+        myCarValid.store (false);
+    }
 }
 
 bool DDRAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
@@ -69,7 +121,14 @@ Settings DDRAudioProcessor::readSettings() const
 {
     Settings s;
     const auto& cars = carProfiles();
-    s.car         = &cars[(size_t) juce::jlimit (0, (int) cars.size() - 1, (int) raw.car->load())];
+    const int carIndex = (int) raw.car->load();
+    if (carIndex == myCarIndex)
+    {
+        s.car = myCarValid.load() ? &myCarSlots[(size_t) myCarSlot.load()] : &cars[1]; // not measured yet: the hatchback
+        s.carVersion = myCarVersion.load();
+    }
+    else
+        s.car = &cars[(size_t) juce::jlimit (0, (int) cars.size() - 1, carIndex)];
     s.speedKmh    = raw.speed->load();
     s.road        = (Road) juce::jlimit (0, 4, (int) raw.road->load());
     s.engine      = (Engine) juce::jlimit (0, 2, (int) raw.engine->load());
@@ -302,6 +361,7 @@ void DDRAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
             auto state = juce::ValueTree::fromXml (*xml);
             currentProgram = (int) state.getProperty ("program", 2);
             apvts.replaceState (state);
+            loadMyCar();
         }
 }
 

@@ -8,6 +8,7 @@ namespace ddr
 struct Settings
 {
     const CarProfile* car = nullptr;
+    int carVersion = 0;          // changes when a measured car is replaced
 
     float  speedKmh    = 100.0f;
     Road   road        = Road::rough;
@@ -40,7 +41,7 @@ struct Settings
     JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wfloat-equal")
     bool operator== (const Settings& o) const noexcept
     {
-        return car == o.car && speedKmh == o.speedKmh && road == o.road && engine == o.engine
+        return car == o.car && carVersion == o.carVersion && speedKmh == o.speedKmh && road == o.road && engine == o.engine
             && window == o.window && fan == o.fan && noiseAmount == o.noiseAmount && noiseOnly == o.noiseOnly
             && boom == o.boom && resonance == o.resonance && reflections == o.reflections && seat == o.seat
             && rhd == o.rhd && lowCutOct == o.lowCutOct && distortion == o.distortion && worn == o.worn
