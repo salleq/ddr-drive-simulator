@@ -78,6 +78,21 @@ public:
 private:
     DDRAudioProcessor& processor;
 };
+
+/** Short text hints under the meter: what gets masked, and from which speed. */
+class HintView : public juce::Component
+{
+public:
+    explicit HintView (DDRAudioProcessor& p) : processor (p) {}
+    void refresh();
+    void paint (juce::Graphics&) override;
+    const std::vector<Hint>& getHints() const { return hints; }
+
+private:
+    DDRAudioProcessor& processor;
+    HintEngine engine;
+    std::vector<Hint> hints;
+};
 } // namespace ddr
 
 /** Everything you see, drawn at 100 % size. The editor scales it for the zoom setting. */
@@ -99,9 +114,13 @@ public:
     void showMyCar (bool show);
     ddr::CalibrationPanel* getMyCarPanel() { return myCarPanel.get(); }
 
+    /** Updates the readouts and hints at once instead of on the next timer ticks (for screenshots). */
+    void refreshNow() { hintTick = 1000; timerCallback(); }
+
 private:
     void timerCallback() override;
-    void updateCarModeButton();
+    void updateCarModeButton (bool carOn);
+    void updatePlace();
 
     DDRAudioProcessor& processor;
     ddr::DashLookAndFeel lnf;
@@ -109,21 +128,24 @@ private:
 
     // header
     juce::TextButton basicButton { "BASIC" }, advancedButton { "ADVANCED" };
-    juce::TextButton carModeButton;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> carModeAttachment;
+    juce::TextButton studioButton { "STUDIO" }, carButton { "CAR" };   // the A/B switch
+    std::unique_ptr<juce::ParameterAttachment> carModeAttachment;
+    bool carModeOn() const { return carButton.getToggleState(); }
     juce::ComboBox situationBox, zoomBox, skinBox;
     std::unique_ptr<juce::Drawable> background;
     juce::Image backgroundImage;
     bool isRetroSkin() const { return skinBox.getSelectedId() != 2; }
 
     // basic strip
-    ddr::Choice car, road;
+    ddr::Choice place, car, road;
     ddr::Knob   speed, output;
     ddr::Toggle mono, levelMatch;
-    juce::Label carDescription, roadDescription;
+    juce::Label carDescription, roadDescription, matchLabel;
     juce::TextButton myCarButton { "MEASURE MY CAR..." };
     std::unique_ptr<ddr::CalibrationPanel> myCarPanel;
     ddr::MaskingMeter meter;
+    ddr::HintView hintView;
+    int hintTick = 0, shownPlace = -1;
 
     // advanced: driving
     ddr::Choice engine;

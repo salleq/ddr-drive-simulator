@@ -12,12 +12,19 @@ DDRAudioProcessor::DDRAudioProcessor()
 {
     auto p = [this] (const char* id) { return apvts.getRawParameterValue (id); };
     raw = { p (ParamID::carMode), p (ParamID::car), p (ParamID::speed), p (ParamID::road), p (ParamID::output),
-            p (ParamID::mono), p (ParamID::levelMatch),
+            p (ParamID::mono), p (ParamID::levelMatch), p (ParamID::place),
             p (ParamID::engine), p (ParamID::window), p (ParamID::fan), p (ParamID::noiseAmount), p (ParamID::noiseOnly),
             p (ParamID::boom), p (ParamID::resonance), p (ParamID::reflections), p (ParamID::seat), p (ParamID::rhd),
             p (ParamID::lowCut), p (ParamID::distortion), p (ParamID::worn), p (ParamID::source), p (ParamID::fader),
             p (ParamID::volume), p (ParamID::loudness), p (ParamID::svc), p (ParamID::bass), p (ParamID::treble),
             p (ParamID::limiter) };
+
+    for (size_t b = 0; b < (size_t) numHintBands; ++b)
+    {
+        hintDry[b].store (-100.0f);
+        hintMusic[b].store (-100.0f);
+        hintNoise[b].store (-100.0f);
+    }
 
     apvts.state.setProperty ("advanced", false, nullptr);
     loadMyCar();
@@ -98,6 +105,30 @@ void DDRAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     noise.update (s);
     music.reset();
     noise.reset();
+
+    activePlace.store (juce::jlimit (0, numPlaces - 1, (int) raw.place->load()));
+    placeChain.prepare (sr);
+    placeChain.setPlace ((Place) activePlace.load());
+    placeChain.reset();
+    ambient.prepare (sr);
+    ambient.setPlace ((Place) activePlace.load(), s.noiseAmount);
+    ambient.reset();
+    switchGain = 1.0f;
+    switchStep = (float) (1.0 / (0.01 * sr));
+    fastMatchSamples = 0;
+
+    for (auto* k : { &kDry, &kWet })
+        for (auto& c : *k)
+        {
+            c[0].setHighShelf (sr, 1682.0, 4.0);
+            c[1].setHighPass (sr, 38.0, 0.5);
+            for (auto& b : c) b.reset();
+        }
+
+    for (auto* f : { &hintDryF, &hintMusicF, &hintNoiseF })
+        f->prepare (sr);
+    hintDryPow.fill (0.0); hintMusicPow.fill (0.0); hintNoisePow.fill (0.0);
+    hintDryTotal = hintMusicTotal = 0.0;
 
     inPower = wetPower = 0.0;
     matchGain = matchTarget = 1.0f;
@@ -209,26 +240,63 @@ void DDRAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
         wet.copyFrom (c, 0, buffer, juce::jmin (c, numCh - 1), 0, n);
     }
 
-    music.process (wet.getWritePointer (0), wet.getWritePointer (1), n);
-    noise.process (noiseBuf.getWritePointer (0), noiseBuf.getWritePointer (1), n);
+    // Listening place: switch only while the old one is faded out, so the change never clicks
+    const int wantedPlace = juce::jlimit (0, numPlaces - 1, (int) raw.place->load());
+    if (wantedPlace != activePlace.load() && switchGain <= 0.0f)
+    {
+        activePlace.store (wantedPlace);
+        placeChain.setPlace ((Place) wantedPlace);
+        placeChain.reset();
+        ambient.setPlace ((Place) wantedPlace, s.noiseAmount);
+        ambient.reset();
+        music.reset();
+        noise.reset();
+        fastMatchSamples = (int) (1.5 * sr);
+    }
+    const auto place = (Place) activePlace.load();
+    const float switchTarget = wantedPlace == (int) place ? 1.0f : 0.0f;
+    const bool inCar = place == Place::car;
 
-    // Level match: keep the car version as loud as the input, so A/B is fair.
+    if (place == Place::car)
+    {
+        music.process (wet.getWritePointer (0), wet.getWritePointer (1), n);
+        noise.process (noiseBuf.getWritePointer (0), noiseBuf.getWritePointer (1), n);
+    }
+    else
+    {
+        placeChain.process (wet.getWritePointer (0), wet.getWritePointer (1), n);
+        ambient.setPlace (place, s.noiseAmount);
+        ambient.process (noiseBuf.getWritePointer (0), noiseBuf.getWritePointer (1), n);
+    }
+
+    // Level match: keep the car version as loud as the input, so A/B is fair. Both sides are
+    // K-weighted like a loudness meter, so a car that boosts the bass doesn't get turned down for it.
     // The noise gets the same gain, so turning the car volume up still lifts the music above the noise.
-    auto meanSquare = [n] (const juce::AudioBuffer<float>& b)
+    auto kWeightedMeanSquare = [n] (const juce::AudioBuffer<float>& b, std::array<std::array<Biquad, 2>, 2>& k)
     {
         double sum = 0.0;
-        for (int c = 0; c < 2; ++c)
+        for (size_t c = 0; c < 2; ++c)
         {
-            const float* d = b.getReadPointer (c);
-            for (int i = 0; i < n; ++i) sum += (double) d[i] * d[i];
+            const float* d = b.getReadPointer ((int) c);
+            for (int i = 0; i < n; ++i)
+            {
+                const float y = k[c][1].process (k[c][0].process (d[i]));
+                sum += (double) y * y;
+            }
         }
         return sum / (2.0 * n);
     };
 
     const double blockSeconds = n / sr;
-    powerCoef = std::exp (-blockSeconds / 3.0);
-    inPower  = meanSquare (dry) + powerCoef * (inPower  - meanSquare (dry));
-    wetPower = meanSquare (wet) + powerCoef * (wetPower - meanSquare (wet));
+    const double dryMs = kWeightedMeanSquare (dry, kDry), wetMs = kWeightedMeanSquare (wet, kWet);
+    const bool fast = fastMatchSamples > 0;
+    fastMatchSamples = juce::jmax (0, fastMatchSamples - n);
+    powerCoef = std::exp (-blockSeconds / (fast ? 0.4 : 3.0));
+    if (dryMs > 1.0e-7)   // ignore silence (gaps between songs), so the match holds its value
+    {
+        inPower  = dryMs + powerCoef * (inPower  - dryMs);
+        wetPower = wetMs + powerCoef * (wetPower - wetMs);
+    }
 
     if (raw.levelMatch->load() > 0.5f)
     {
@@ -253,13 +321,15 @@ void DDRAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
             playing = pos->getIsPlaying();
     const float noiseTarget = playing ? 1.0f : 0.0f;
     const float noiseStep = (float) (1.0 / (0.25 * sr));
-    const float smooth = 0.9995f;
+    const float smooth = fast ? 0.998f : 0.9995f;
 
     float* dl = dry.getWritePointer (0);  float* dr = dry.getWritePointer (1);
     float* wl = wet.getWritePointer (0);  float* wr = wet.getWritePointer (1);
     float* nl = noiseBuf.getWritePointer (0); float* nr = noiseBuf.getWritePointer (1);
 
     double mPow[3] {}, nPow[3] {};
+    std::array<double, numHintBands> hDry {}, hMusic {}, hNoise {};
+    double hDryTotal = 0.0, hMusicTotal = 0.0;
 
     for (int i = 0; i < n; ++i)
     {
@@ -267,11 +337,26 @@ void DDRAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
         outGain   = outTarget + smooth * (outGain - outTarget);
         carMix    = carTarget > carMix ? juce::jmin (carTarget, carMix + carMixStep)
                                        : juce::jmax (carTarget, carMix - carMixStep);
+        switchGain = switchTarget > switchGain ? juce::jmin (switchTarget, switchGain + switchStep)
+                                               : juce::jmax (switchTarget, switchGain - switchStep);
+
+        // mix hints look at the music and noise before level matching
+        const float dm = 0.5f * (dl[i] + dr[i]), wm = 0.5f * (wl[i] + wr[i]), xm = 0.5f * (nl[i] + nr[i]);
+        hintDryF.process (dm, hDry);
+        hintMusicF.process (wm, hMusic);
+        // in a device place the background noise is not level matched (see below), so compare it
+        // with the music as if it were
+        hintNoiseF.process (inCar ? xm : xm / matchGain, hNoise);
+        hDryTotal += (double) dm * dm;
+        hMusicTotal += (double) wm * wm;
 
         const float ml = wl[i] * matchGain, mr = wr[i] * matchGain;
         noiseFade = noiseTarget > noiseFade ? juce::jmin (noiseTarget, noiseFade + noiseStep)
                                             : juce::jmax (noiseTarget, noiseFade - noiseStep);
-        const float xl = nl[i] * matchGain * noiseFade, xr = nr[i] * matchGain * noiseFade;
+        // In the car the noise follows the level match, so the car volume still decides music vs noise.
+        // A device is turned up until the song is as loud as in the studio: its background noise stays put.
+        const float noiseGain = (inCar ? matchGain : 1.0f) * noiseFade;
+        const float xl = nl[i] * noiseGain, xr = nr[i] * noiseGain;
 
         // meters (mono sums)
         const float mm = 0.5f * (ml + mr), nm = 0.5f * (xl + xr);
@@ -280,7 +365,7 @@ void DDRAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
         mPow[0] += mLow * mLow; mPow[1] += mMid * mMid; mPow[2] += mHigh * mHigh;
         nPow[0] += nLow * nLow; nPow[1] += nMid * nMid; nPow[2] += nHigh * nHigh;
 
-        float carL = musicOn * ml + xl, carR = musicOn * mr + xr;
+        float carL = (musicOn * ml + xl) * switchGain, carR = (musicOn * mr + xr) * switchGain;
         float l = carMix * carL + (1.0f - carMix) * dl[i];
         float r = carMix * carR + (1.0f - carMix) * dr[i];
 
@@ -299,6 +384,26 @@ void DDRAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
         meters[b].music.store ((float) (10.0 * std::log10 (musicBandPow[b] + 1.0e-12)));
         meters[b].noise.store ((float) (10.0 * std::log10 (noiseBandPow[b] + 1.0e-12)));
     }
+    matchDb.store (20.0f * std::log10 (juce::jmax (1.0e-6f, matchGain)));
+
+    // The hints average over a couple of seconds, and hold still while the music is silent
+    if (hDryTotal / n > 1.0e-8)
+    {
+        const double hintCoef = std::exp (-blockSeconds / (fast ? 0.4 : 2.0));
+        auto avg = [hintCoef, n] (double& state, double blockSum)
+        {
+            state = blockSum / n + hintCoef * (state - blockSum / n);
+            return (float) (10.0 * std::log10 (state + 1.0e-12));
+        };
+        for (size_t b = 0; b < (size_t) numHintBands; ++b)
+        {
+            hintDry[b].store (avg (hintDryPow[b], hDry[b]));
+            hintMusic[b].store (avg (hintMusicPow[b], hMusic[b]));
+            hintNoise[b].store (avg (hintNoisePow[b], hNoise[b]));
+        }
+        hintDryTotalDb.store (avg (hintDryTotal, hDryTotal));
+        hintMusicTotalDb.store (avg (hintMusicTotal, hMusicTotal));
+    }
 
     if (numCh == 1)
     {
@@ -314,6 +419,20 @@ void DDRAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
 
     for (int c = 2; c < buffer.getNumChannels(); ++c)
         buffer.clear (c, 0, n);
+}
+
+HintLevels DDRAudioProcessor::getHintLevels() const
+{
+    HintLevels h;
+    for (size_t b = 0; b < (size_t) numHintBands; ++b)
+    {
+        h.dry[b]   = hintDry[b].load();
+        h.music[b] = hintMusic[b].load();
+        h.noise[b] = hintNoise[b].load();
+    }
+    h.dryTotal   = hintDryTotalDb.load();
+    h.musicTotal = hintMusicTotalDb.load();
+    return h;
 }
 
 int DDRAudioProcessor::getNumPrograms() { return (int) situations().size(); }

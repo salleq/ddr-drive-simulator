@@ -56,6 +56,7 @@ juce::StringArray carNames()
     return names;
 }
 
+juce::StringArray placeNames()  { return { "Car", "Phone Speaker", "Cheap Earbuds", "Bluetooth Speaker" }; }
 juce::StringArray roadNames()   { return { "Smooth Asphalt", "Rough Asphalt", "Studded Tyres", "Gravel", "Wet Road" }; }
 juce::StringArray engineNames() { return { "Petrol", "Diesel", "Electric" }; }
 juce::StringArray seatNames()   { return { "Driver", "Front Passenger", "Back Seat", "Sweet Spot" }; }
@@ -101,6 +102,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
         ParameterID { ParamID::output, 1 }, "Output", NormalisableRange<float> (-24.0f, 12.0f, 0.1f), 0.0f, decibels));
     addBool (ParamID::mono, "Mono", false);
     addBool (ParamID::levelMatch, "Level Match", true);
+    addChoice (ParamID::place, "Listen On", placeNames(), 0);
 
     // Driving & noise
     addChoice (ParamID::engine, "Engine", engineNames(), 0);

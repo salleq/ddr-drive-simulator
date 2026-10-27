@@ -5,6 +5,8 @@
 #include "dsp/MusicChain.h"
 #include "dsp/NoiseGenerator.h"
 #include "calibration/Calibration.h"
+#include "dsp/Places.h"
+#include "MixHints.h"
 #include <atomic>
 
 class DDRAudioProcessor : public juce::AudioProcessor
@@ -43,6 +45,18 @@ public:
     struct BandMeter { std::atomic<float> music { -100.0f }, noise { -100.0f }; };
     std::array<BandMeter, 3> meters;
 
+    /** How much level matching turns the car (or device) up or down right now, in dB. */
+    std::atomic<float> matchDb { 0.0f };
+
+    /** Band levels for the mix hints, before level matching. */
+    ddr::HintLevels getHintLevels() const;
+
+    /** The listening place that is playing now. */
+    ddr::Place getPlace() const noexcept { return (ddr::Place) activePlace.load(); }
+
+    /** A snapshot of all parameters (any thread). */
+    ddr::Settings readSettings() const;
+
     /** "My Car" (message thread only): installs a measured car, stores it in the project and as the
         default for new DDR instances. An invalid tree removes it from this project. */
     void setMyCar (const juce::ValueTree& tree);
@@ -54,7 +68,6 @@ public:
     static inline bool useMyCarFile = true;   // the test tools switch this off
 
 private:
-    ddr::Settings readSettings() const;
     void loadMyCar();
 
     // The measured car, double buffered: the audio thread reads one slot while the other is rewritten
@@ -66,6 +79,21 @@ private:
     ddr::Settings smoothed, lastApplied;
     ddr::MusicChain music;
     ddr::NoiseGenerator noise;
+    ddr::PlaceChain placeChain;
+    ddr::AmbientNoise ambient;
+    std::atomic<int> activePlace { 0 };
+    float switchGain = 1.0f, switchStep = 0.0f;
+    int fastMatchSamples = 0;   // after a place switch the level match adapts quickly
+
+    // K-weighting (as in loudness meters) for the level match, per channel: dry and wet
+    std::array<std::array<ddr::Biquad, 2>, 2> kDry, kWet;
+
+    // mix hints
+    ddr::HintFilters hintDryF, hintMusicF, hintNoiseF;
+    std::array<double, ddr::numHintBands> hintDryPow {}, hintMusicPow {}, hintNoisePow {};
+    double hintDryTotal = 0.0, hintMusicTotal = 0.0;
+    std::array<std::atomic<float>, ddr::numHintBands> hintDry, hintMusic, hintNoise;
+    std::atomic<float> hintDryTotalDb { -100.0f }, hintMusicTotalDb { -100.0f };
 
     juce::AudioBuffer<float> dry, wet, noiseBuf;
 
@@ -84,7 +112,7 @@ private:
     // cached raw parameter pointers (read on the audio thread)
     struct Raw
     {
-        std::atomic<float> *carMode, *car, *speed, *road, *output, *mono, *levelMatch,
+        std::atomic<float> *carMode, *car, *speed, *road, *output, *mono, *levelMatch, *place,
                            *engine, *window, *fan, *noiseAmount, *noiseOnly,
                            *boom, *resonance, *reflections, *seat, *rhd,
                            *lowCut, *distortion, *worn, *source, *fader,

@@ -59,6 +59,8 @@ target_sources(DDR PRIVATE
     Source/Parameters.cpp
     Source/dsp/MusicChain.cpp
     Source/dsp/NoiseGenerator.cpp
+    Source/dsp/Places.cpp
+    Source/MixHints.cpp
     Source/calibration/Calibration.cpp
     Source/calibration/CalibrationPanel.cpp)
 
@@ -92,6 +94,8 @@ if(DDR_BUILD_TOOLS)
         Source/Parameters.cpp
         Source/dsp/MusicChain.cpp
         Source/dsp/NoiseGenerator.cpp
+        Source/dsp/Places.cpp
+        Source/MixHints.cpp
         Source/calibration/Calibration.cpp
         Source/calibration/CalibrationPanel.cpp)
     target_include_directories(ddr_snapshot PRIVATE Source)
