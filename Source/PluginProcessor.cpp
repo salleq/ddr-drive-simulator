@@ -146,6 +146,9 @@ void DDRAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     }
     musicBandPow.fill (0.0);
     noiseBandPow.fill (0.0);
+
+    references.prepare (sr);
+    refWasActive = false;
 }
 
 Settings DDRAudioProcessor::readSettings() const
@@ -240,6 +243,19 @@ void DDRAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
         wet.copyFrom (c, 0, buffer, juce::jmin (c, numCh - 1), 0, n);
     }
 
+    // A playing reference takes the mix's place, so everything after this treats it as the music
+    references.setMixLoudness (mixLufs.load());
+    const bool refActive = references.process (dry.getWritePointer (0), dry.getWritePointer (1), n);
+    if (refActive || refWasActive)
+    {
+        wet.copyFrom (0, 0, dry, 0, 0, n);
+        wet.copyFrom (1, 0, dry, 1, 0, n);
+    }
+    if (refActive != refWasActive)
+        fastMatchSamples = juce::jmax (fastMatchSamples, (int) (1.5 * sr));   // a new song: let the level match catch up
+    const bool refBlock = refActive || refWasActive;
+    refWasActive = refActive;
+
     // Listening place: switch only while the old one is faded out, so the change never clicks
     const int wantedPlace = juce::jlimit (0, numPlaces - 1, (int) raw.place->load());
     if (wantedPlace != activePlace.load() && switchGain <= 0.0f)
@@ -298,6 +314,15 @@ void DDRAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
         wetPower = wetMs + powerCoef * (wetPower - wetMs);
     }
 
+    // The mix's loudness (10 s average, quiet parts left out), for matching the references to it
+    if (! refBlock && dryMs > 1.0e-6)
+    {
+        // a plain average over the first 10 s, then a moving one, so one loud first hit can't skew it
+        mixSeconds = juce::jmin (10.0, mixSeconds + blockSeconds);
+        mixPower += (dryMs - mixPower) * (blockSeconds / mixSeconds);
+        mixLufs.store ((float) (-0.691 + 10.0 * std::log10 (2.0 * mixPower + 1.0e-20)));
+    }
+
     if (raw.levelMatch->load() > 0.5f)
     {
         if (inPower > 1.0e-8 && wetPower > 1.0e-10)
@@ -319,6 +344,7 @@ void DDRAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Mi
     if (auto* head = getPlayHead())
         if (auto pos = head->getPosition())
             playing = pos->getIsPlaying();
+    playing = playing || refBlock;   // a reference plays even while the host is stopped
     const float noiseTarget = playing ? 1.0f : 0.0f;
     const float noiseStep = (float) (1.0 / (0.25 * sr));
     const float smooth = fast ? 0.998f : 0.9995f;
@@ -468,6 +494,8 @@ void DDRAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     auto state = apvts.copyState();
     state.setProperty ("program", currentProgram, nullptr);
+    state.removeChild (state.getChildWithName (ddr::ReferencePlayer::stateTag), nullptr);
+    state.addChild (references.toState(), -1, nullptr);
     if (auto xml = state.createXml())
         copyXmlToBinary (*xml, destData);
 }
@@ -479,8 +507,12 @@ void DDRAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
         {
             auto state = juce::ValueTree::fromXml (*xml);
             currentProgram = (int) state.getProperty ("program", 2);
+            const auto refs = state.getChildWithName (ddr::ReferencePlayer::stateTag);
+            state.removeChild (refs, nullptr);
             apvts.replaceState (state);
             loadMyCar();
+            references.fromState (refs, juce::MessageManager::getInstanceWithoutCreating() != nullptr
+                                            && juce::MessageManager::getInstanceWithoutCreating()->isThisTheMessageThread());
         }
 }
 

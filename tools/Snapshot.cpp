@@ -237,6 +237,127 @@ int main (int argc, char* argv[])
         finite = finite && myCarOk;
     }
 
+    // Reference tracks: they replace the mix, match its loudness, loop, stop at the end and are saved
+    const auto refDir = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("ddr-refs");
+    refDir.createDirectory();
+    auto writeRef = [&] (const juce::String& name, double rate, float gain, double seconds)
+    {
+        juce::AudioBuffer<float> song (2, (int) (rate * seconds));
+        fillTestSong (song, rate, 12345);
+        song.applyGain (gain);
+        auto file = refDir.getChildFile (name);
+        file.deleteFile();
+        juce::WavAudioFormat wav;
+        std::unique_ptr<juce::AudioFormatWriter> writer (wav.createWriterFor (new juce::FileOutputStream (file), rate, 2, 24, {}, 0));
+        writer->writeFromAudioSampleBuffer (song, 0, song.getNumSamples());
+        return file;
+    };
+    const auto refFile  = writeRef ("Favourite club track.wav", 44100.0, 0.5f, 20.0);
+    const auto refFile2 = writeRef ("Radio hit.wav", 48000.0, 0.8f, 30.0);
+    {
+        DDRAudioProcessor p8;
+        p8.setPlayConfigDetails (2, 2, sr, 512);
+        p8.prepareToPlay (sr, 512);
+        setParam (p8, ddr::ParamID::carMode, 0.0f);
+        int64_t at = 0;
+        double mixRms = 0.0;
+        runAudio (p8, sr, 600, at, &mixRms);   // the mix plays first, so its loudness is known
+
+        auto& refs = p8.references;
+        refs.loadNow (0, refFile);
+        const auto track = refs.getTrack (0);
+        bool ok = track != nullptr && refs.getStatus (0) == ddr::ReferencePlayer::Status::ready
+                  && std::abs (track->lengthSeconds - 20.0) < 0.01;
+        std::printf ("reference loaded: %s, %.1f LUFS, %.1f s, mix %.1f LUFS\n", ok ? "yes" : "NO",
+                     track != nullptr ? (double) track->lufs : -100.0, track != nullptr ? track->lengthSeconds : 0.0,
+                     (double) p8.getMixLoudness());
+
+        // play it while the host sends silence: what comes out is the reference, as loud as the mix
+        auto runSilence = [&] (int blocks, double& rms)
+        {
+            juce::AudioBuffer<float> buf (2, 512);
+            juce::MidiBuffer midi;
+            juce::AudioBuffer<float> all (2, blocks * 512);
+            for (int k = 0; k < blocks; ++k)
+            {
+                buf.clear();
+                p8.processBlock (buf, midi);
+                for (int c = 0; c < 2; ++c)
+                    all.copyFrom (c, k * 512, buf, c, 0, 512);
+            }
+            rms = rmsDb (all);
+        };
+        double refRms = 0.0, quiet = 0.0;
+        refs.play (0);
+        runSilence (200, refRms);
+        const bool matched = std::abs (refRms - mixRms) < 1.5;
+        std::printf ("reference plays as loud as the mix: %s (mix %.1f dBFS, ref %.1f dBFS, gain %+.1f dB)\n",
+                     matched ? "yes" : "NO", mixRms, refRms, (double) refs.getGainDb());
+
+        refs.setMatchToMix (false);
+        double unmatched = 0.0;
+        runSilence (200, unmatched);
+        const bool raw = std::abs ((mixRms - unmatched) - 6.0) < 1.5;   // the file is 6 dB quieter than the mix
+        std::printf ("match off plays it as it is: %s (%.1f dBFS)\n", raw ? "yes" : "NO", unmatched);
+        refs.setMatchToMix (true);
+
+        // a loop keeps the playhead inside it
+        refs.setLoop (0, 5.0, 6.0);
+        refs.setLoopOn (0, true);
+        double dummy = 0.0, lo = 1.0e9, hi = 0.0;
+        for (int k = 0; k < 30; ++k)
+        {
+            runSilence (10, dummy);
+            lo = juce::jmin (lo, refs.getPosition (0));
+            hi = juce::jmax (hi, refs.getPosition (0));
+        }
+        const bool looped = lo >= 4.99 && hi <= 6.01 && refs.isPlaying (0);
+        std::printf ("loop 5-6 s holds the playhead: %s (%.2f-%.2f s)\n", looped ? "yes" : "NO", lo, hi);
+
+        // the loop and the file survive a save and load
+        juce::MemoryBlock saved;
+        p8.getStateInformation (saved);
+        DDRAudioProcessor p9;
+        p9.setStateInformation (saved.getData(), (int) saved.getSize());
+        ddr::ReferencePlayer fresh;
+        fresh.fromState (p8.references.toState(), false);
+        const auto loop9 = p9.references.getLoop (0);
+        const bool restored = p9.references.getFile (0) == refFile && fresh.getStatus (0) == ddr::ReferencePlayer::Status::ready
+                              && fresh.getStatus (1) == ddr::ReferencePlayer::Status::empty
+                              && std::abs (loop9.start - 5.0) < 1.0e-6 && std::abs (loop9.end - 6.0) < 1.0e-6 && loop9.on
+                              && std::abs (fresh.getLoop (0).end - 6.0) < 1.0e-6;
+        std::printf ("reference and loop survive a save and load: %s\n", restored ? "yes" : "NO");
+
+        // pause: back to the mix (silence here)
+        refs.pause();
+        runSilence (5, quiet);    // the fade out
+        runSilence (50, quiet);
+        const bool paused = quiet < -120.0;
+        std::printf ("pause returns to the mix: %s (%.0f dBFS)\n", paused ? "yes" : "NO", quiet);
+
+        // without the loop it stops at the end and rewinds
+        refs.setLoopOn (0, false);
+        refs.seek (0, 19.5);
+        refs.play (0);
+        runSilence (100, dummy);
+        const bool stopped = ! refs.isPlaying (0) && refs.getPosition (0) < 0.01;
+        std::printf ("stops and rewinds at the end: %s\n", stopped ? "yes" : "NO");
+
+        // a second reference at another sample rate, switched while playing, in the car
+        refs.loadNow (1, refFile2);
+        setParam (p8, ddr::ParamID::carMode, 1.0f);
+        refs.play (0);
+        bool fin = true;
+        runAudio (p8, sr, 50, at, nullptr, &fin);
+        refs.play (1);
+        runAudio (p8, sr, 50, at, nullptr, &fin);
+        refs.clear (1);   // removed while playing
+        runAudio (p8, sr, 50, at, nullptr, &fin);
+        std::printf ("switching and removing while playing: %s\n", fin && refs.getPlayingSlot() == -1 ? "ok" : "NOT OK");
+
+        finite = finite && ok && matched && raw && looped && restored && paused && stopped && fin;
+    }
+
     // Reset to defaults for the measurements and the screenshot
     for (auto* param : processor.getParameters())
         if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (param))
@@ -333,6 +454,12 @@ int main (int argc, char* argv[])
         juce::PNGImageFormat().writeImageToStream (img, stream);
     }
 
+    // two references in the screenshots: the first one plays its loop
+    processor.references.loadNow (0, refFile);
+    processor.references.loadNow (1, refFile2);
+    processor.references.setLoop (0, 8.0, 12.5);
+    processor.references.setLoopOn (0, true);
+
     std::unique_ptr<juce::AudioProcessorEditor> editor (processor.createEditor());
     auto* ddrEditor = dynamic_cast<DDRAudioProcessorEditor*> (editor.get());
 
@@ -363,6 +490,33 @@ int main (int argc, char* argv[])
         std::printf ("wrote %s\n", file.getFullPathName().toRawUTF8());
         setParam (processor, ddr::ParamID::place, 0.0f);
         runAudio (processor, sr, 50, pos);
+    }
+
+    {
+        // the big view of a reference, playing its loop
+        ddrEditor->setAdvanced (false);
+        processor.references.play (0);
+        runAudio (processor, sr, 120, pos);
+        auto& panel = ddrEditor->getPanel();
+        panel.showReference (0);
+        auto image = editor->createComponentSnapshot (editor->getLocalBounds(), true, 2.0f);
+        auto file = outDir.getChildFile ("ddr-reference.png");
+        file.deleteFile();
+        juce::FileOutputStream stream (file);
+        juce::PNGImageFormat().writeImageToStream (image, stream);
+        std::printf ("wrote %s\n", file.getFullPathName().toRawUTF8());
+        panel.showReference (-1);
+
+        // and the small cards while it plays
+        panel.refreshNow();
+        auto cards = editor->createComponentSnapshot (editor->getLocalBounds(), true, 2.0f);
+        auto cardFile = outDir.getChildFile ("ddr-reference-cards.png");
+        cardFile.deleteFile();
+        juce::FileOutputStream cardStream (cardFile);
+        juce::PNGImageFormat().writeImageToStream (cards, cardStream);
+        std::printf ("wrote %s\n", cardFile.getFullPathName().toRawUTF8());
+        processor.references.pause();
+        runAudio (processor, sr, 20, pos);
     }
 
     {
