@@ -43,6 +43,17 @@ INSTALL ON LINUX (x64 or ARM64)
    or to /usr/lib/vst3 for all users.
 2. Rescan plugins in your DAW (Reaper, Bitwig, Ardour...).
 
+DESKTOP APP (no DAW needed)
+  The zip also has DDR as a desktop app for quickly playing reference tracks
+  through the car:
+  Windows ... "DDR Drive Simulator.exe" (copy it anywhere and double-click)
+  macOS ..... "DDR Drive Simulator.app" (copy it to Applications; the first
+              time, right-click it and choose Open, or run:
+              xattr -dr com.apple.quarantine "/Applications/DDR Drive Simulator.app")
+  Linux ..... "DDR Drive Simulator" (run it; chmod +x if needed)
+  Drop a song on a reference card and press play. Pick the sound card under
+  Options > Audio/MIDI Settings.
+
 HOW TO USE
 Put DDR as the LAST plugin on your master bus. Pick a car, a speed and a road.
 Press CAR / STUDIO to compare. Remember to switch it off (or bypass it) before you bounce!

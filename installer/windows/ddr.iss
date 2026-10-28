@@ -1,5 +1,5 @@
 ; Inno Setup script for the DDR Windows installer.
-; Built by CI: ISCC /DArch=x64|arm64 /DVersion=0.1.0 /DSourceDir=<folder with the .vst3> ddr.iss
+; Built by CI: ISCC /DArch=x64|arm64 /DVersion=0.1.0 /DSourceDir=<folder with the .vst3 and the .exe> ddr.iss
 
 #ifndef Arch
   #define Arch "x64"
@@ -22,7 +22,7 @@ DefaultDirName={commoncf64}\VST3
 DisableDirPage=yes
 DisableProgramGroupPage=yes
 Uninstallable=yes
-UninstallDisplayName=DDR Drive Simulator (VST3)
+UninstallDisplayName=DDR Drive Simulator
 CreateUninstallRegKey=yes
 PrivilegesRequired=admin
 LicenseFile=..\..\LICENSE
@@ -41,10 +41,19 @@ SolidCompression=yes
 WizardStyle=modern
 
 [Messages]
-FinishedLabel=DDR is installed in %n{commoncf64}\VST3%n%nRescan plugins in your DAW and put DDR last on your master bus. Remember to bypass it before you bounce!
+FinishedLabel=The DDR plugin is installed in %n{commoncf64}\VST3%nand the DDR desktop app is in the Start menu.%n%nRescan plugins in your DAW and put DDR last on your master bus. Remember to bypass it before you bounce!
 
 [Files]
 Source: "{#SourceDir}\DDR Drive Simulator.vst3\*"; DestDir: "{commoncf64}\VST3\DDR Drive Simulator.vst3"; Flags: ignoreversion recursesubdirs createallsubdirs
 
+Source: "{#SourceDir}\DDR Drive Simulator.exe"; DestDir: "{commonpf64}\DDR Drive Simulator"; Flags: ignoreversion
+
+[Icons]
+Name: "{commonprograms}\DDR Drive Simulator"; Filename: "{commonpf64}\DDR Drive Simulator\DDR Drive Simulator.exe"
+
+[Run]
+Filename: "{commonpf64}\DDR Drive Simulator\DDR Drive Simulator.exe"; Description: "Open the DDR desktop app"; Flags: nowait postinstall skipifsilent unchecked
+
 [UninstallDelete]
 Type: filesandordirs; Name: "{commoncf64}\VST3\DDR Drive Simulator.vst3"
+Type: filesandordirs; Name: "{commonpf64}\DDR Drive Simulator"

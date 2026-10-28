@@ -8,6 +8,7 @@
     <choices-outline>
         <line choice="vst3"/>
         <line choice="au"/>
+        <line choice="app"/>
     </choices-outline>
     <choice id="vst3" title="VST3 plugin" description="For Ableton Live, Cubase, Reaper, Studio One, Bitwig and most other DAWs.">
         <pkg-ref id="com.salleq.ddr.vst3"/>
@@ -15,6 +16,10 @@
     <choice id="au" title="Audio Unit" description="For Logic Pro and GarageBand.">
         <pkg-ref id="com.salleq.ddr.au"/>
     </choice>
+    <choice id="app" title="Desktop app" description="DDR on its own in /Applications: play reference tracks through the car without a DAW.">
+        <pkg-ref id="com.salleq.ddr.app"/>
+    </choice>
     <pkg-ref id="com.salleq.ddr.vst3" version="@VERSION@">vst3.pkg</pkg-ref>
     <pkg-ref id="com.salleq.ddr.au" version="@VERSION@">au.pkg</pkg-ref>
+    <pkg-ref id="com.salleq.ddr.app" version="@VERSION@">app.pkg</pkg-ref>
 </installer-gui-script>
