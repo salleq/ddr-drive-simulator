@@ -47,6 +47,9 @@ juce_add_plugin(DDR
     NEEDS_MIDI_OUTPUT FALSE
     IS_MIDI_EFFECT FALSE
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
+    # the desktop app can take audio in (e.g. a loopback device); macOS asks for permission once
+    MICROPHONE_PERMISSION_ENABLED TRUE
+    MICROPHONE_PERMISSION_TEXT "DDR plays audio from an input (for example a loopback device) through the car."
     COPY_PLUGIN_AFTER_BUILD FALSE)
 
 # The Retro skin's background image, compiled into the plugin

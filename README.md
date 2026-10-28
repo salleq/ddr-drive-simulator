@@ -58,6 +58,12 @@ Load up to two reference songs under **Reference tracks** (click a card, or drop
 
 ![Reference big view](docs/ddr-reference.png)
 
+## Desktop app (no DAW needed)
+
+DDR also comes as a small desktop app, handy for quickly auditioning reference tracks in the car without opening a project. Open **DDR Drive Simulator** (Start menu on Windows, Applications on Mac), drop a song on a reference card and press play. Pick the sound card under **Options → Audio/MIDI Settings**.
+
+The app can also run live audio through the car: choose an input there (for example a loopback device such as BlackHole or VB-Cable) and untick **Mute audio input**. Use headphones or a loopback device, not a microphone near your speakers, or it will feed back.
+
 ## My Car: measure your own car with a phone
 
 Play DDR's test signal in your car, record it with your phone, and load the recording in DDR (**MEASURE MY CAR…** under the car type). DDR finds the sweeps, works out your car's frequency response and fits a car profile to it. Record the same signal at your mixing position too and DDR also cancels out the phone's microphone and your monitors. No measurement microphone needed.
@@ -93,7 +99,7 @@ Download from the [Releases page](https://github.com/salleq/ddr-drive-simulator/
 | Mac (Apple Silicon and Intel) | `DDR-…-macOS-Installer.pkg` | `DDR-macOS.zip` |
 | Linux x64 / ARM64 | – | `DDR-Linux.zip` / `DDR-Linux-ARM64.zip` |
 
-The installers put the plugin in the standard folders, and the Windows one adds an uninstaller. Manual install steps are in `INSTALL.txt` inside each zip ([read it here](docs/INSTALL.txt)).
+The installers put the plugin in the standard folders and install the desktop app too, and the Windows one adds an uninstaller. Manual install steps are in `INSTALL.txt` inside each zip ([read it here](docs/INSTALL.txt)).
 
 **macOS:** DDR is free and not notarized by Apple (that needs a paid developer account), so the first time you open the `.pkg` macOS says it can't check it. Open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. You only do this once.
 

@@ -59,8 +59,8 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          targets="DDR_VST3"
-          if [ "$RUNNER_OS" = "macOS" ]; then targets="DDR_VST3 DDR_AU"; fi
+          targets="DDR_VST3 DDR_Standalone"
+          if [ "$RUNNER_OS" = "macOS" ]; then targets="$targets DDR_AU"; fi
           if [ "${{ matrix.selftest }}" = "true" ]; then targets="$targets ddr_snapshot"; fi
           cmake --build build --config Release --target $targets --parallel 4
 
@@ -73,12 +73,22 @@ jobs:
           echo "path=$path" >> "$GITHUB_OUTPUT"
           au=$(find build -type d -name "DDR Drive Simulator.component" -path "*Release*" | head -1)
           echo "au=$au" >> "$GITHUB_OUTPUT"
+          # the desktop app: a .app bundle on macOS, an .exe on Windows, a plain binary on Linux
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            app=$(find build -type d -name "DDR Drive Simulator.app" -path "*Release*" | head -1)
+          else
+            app=$(find build -type f \( -name "DDR Drive Simulator.exe" -o -name "DDR Drive Simulator" \) -path "*Standalone*" -path "*Release*" | head -1)
+          fi
+          echo "App: $app"
+          test -n "$app"
+          echo "app=$app" >> "$GITHUB_OUTPUT"
 
       - name: Ad-hoc sign (macOS)
         if: runner.os == 'macOS'
         run: |
           codesign --force --deep --sign - "${{ steps.plugin.outputs.path }}"
           codesign --force --deep --sign - "${{ steps.plugin.outputs.au }}"
+          codesign --force --deep --sign - "${{ steps.plugin.outputs.app }}"
 
       - name: Self test (stability sweep, STUDIO transparency, state)
         if: matrix.selftest
@@ -93,7 +103,7 @@ jobs:
           version=$(grep -m1 -o 'project(DDR VERSION [0-9.]*' CMakeLists.txt | awk '{print $3}')
           mkdir -p installers
           installer/macos/build_pkg.sh "${{ steps.plugin.outputs.path }}" "${{ steps.plugin.outputs.au }}" \
-            "$version" "installers/DDR-$version-macOS-Installer.pkg"
+            "${{ steps.plugin.outputs.app }}" "$version" "installers/DDR-$version-macOS-Installer.pkg"
 
       - name: Validate with pluginval
         if: matrix.pluginval_url
@@ -113,6 +123,7 @@ jobs:
           mkdir -p dist
           cp -R "${{ steps.plugin.outputs.path }}" dist/
           if [ -n "${{ steps.plugin.outputs.au }}" ]; then cp -R "${{ steps.plugin.outputs.au }}" dist/; fi
+          cp -R "${{ steps.plugin.outputs.app }}" dist/
           cp docs/INSTALL.txt dist/
           cd dist
           if [ "$RUNNER_OS" != "Windows" ]; then
