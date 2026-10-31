@@ -120,6 +120,15 @@ if(DDR_BUILD_TOOLS)
         juce::juce_audio_processors juce::juce_dsp
         juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
 
+    # What the speaker distortion adds to a bass tone (harmonics vs. fizz vs. rattle noise)
+    juce_add_console_app(ddr_disttest PRODUCT_NAME "ddr_disttest")
+    target_sources(ddr_disttest PRIVATE tools/DistortionTest.cpp Source/Parameters.cpp Source/dsp/MusicChain.cpp)
+    target_include_directories(ddr_disttest PRIVATE Source)
+    target_compile_definitions(ddr_disttest PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+    target_link_libraries(ddr_disttest PRIVATE
+        juce::juce_audio_processors juce::juce_dsp
+        juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
     # End-to-end test of "My Car": simulated car + phone -> analysis -> fitted profile
     juce_add_console_app(ddr_caltest PRODUCT_NAME "ddr_caltest")
     target_sources(ddr_caltest PRIVATE tools/CalibrationTest.cpp Source/calibration/Calibration.cpp

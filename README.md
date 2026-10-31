@@ -41,7 +41,7 @@ DDR simulates all of these.
 | --- | --- |
 | Driving & noise | Fan (0–4), Noise amount, Engine (Petrol / Diesel / Electric), Window open, Noise only |
 | Cabin & seat | Boom, Resonance, Reflections, Seat (Driver / Front Passenger / Back Seat / Sweet Spot), Right-hand drive |
-| Speakers | Low cut shift, Cone distortion (incl. door rattle), Fader (front/rear), Worn speakers, Source (USB / Bluetooth / FM radio) |
+| Speakers | Low cut shift, Cone distortion (thick bass overdrive; door rattle above 100 %), Fader (front/rear), Worn speakers (adds torn-cone scratch), Source (USB / Bluetooth / FM radio) |
 | Head unit | Volume (0–40), Bass, Treble, Speed volume (Off / Low / High), Loudness, Limiter |
 
 The car presets are educated guesses at typical stock systems, not measurements of any specific car.
