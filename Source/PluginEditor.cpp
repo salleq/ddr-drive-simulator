@@ -485,10 +485,10 @@ DDRPanel::DDRPanel (DDRAudioProcessor& p)
     seat.box.setTooltip ("Where you sit. Off-centre seats hear the near speaker first and louder.");
     rhd.button.setTooltip ("Mirror the car for right-hand drive countries.");
     lowCut.slider.setTooltip ("Moves the speakers' bass roll-off down (bigger) or up (smaller) in octaves.");
-    distortion.slider.setTooltip ("How much the door speakers distort when the bass gets loud.");
+    distortion.slider.setTooltip ("How hard the door speakers overdrive when the bass gets loud. Above 100 % the door trim starts to rattle.");
     source.box.setTooltip ("How the music reaches the car: USB/CD, Bluetooth or FM radio.");
     fader.slider.setTooltip ("Front/rear balance, like the car's own fader. The City Car has no rear speakers.");
-    worn.button.setTooltip ("Old, tired speaker cones: less bass, duller top, more distortion.");
+    worn.button.setTooltip ("Old, tired speaker cones: less bass, duller top, more distortion and a torn-cone scratch on bass peaks.");
     volume.slider.setTooltip ("Car stereo volume. Louder lifts the music over the noise but pushes the limiter and speakers.");
     bass.slider.setTooltip ("The car stereo's bass tone control.");
     treble.slider.setTooltip ("The car stereo's treble tone control.");

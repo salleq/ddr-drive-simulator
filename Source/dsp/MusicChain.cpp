@@ -65,6 +65,9 @@ void MusicChain::reset()
     for (auto* f : { &srcLp1, &srcLp2, &srcShelf, &huBass, &huTreble, &huLoudLow, &huLoudHigh,
                      &spkHp1, &spkHp2, &spkTop, &spkWorn, &spkLowBand, &cabBoom, &cabSeatShelf })
         f->reset();
+    for (auto* f : { &coneLpL1, &coneLpL2, &coneLpR1, &coneLpR2, &coneDcL, &coneDcR })
+        f->reset();
+    rattleBpL.reset(); rattleBpR.reset(); scratchBpL.reset(); scratchBpR.reset();
     for (auto& f : spkBands) f.reset();
     for (auto& f : spkExtra) f.reset();
     for (auto& f : cabModes) f.reset();
@@ -146,12 +149,29 @@ void MusicChain::update (const Settings& s)
     keepState (spkWorn, [&] (Biquad& b) { if (worn) b.setHighShelf (sr, 5000.0, -3.0); else b.setIdentity(); });
     keepState (spkLowBand, [&] (Biquad& b) { b.setLowPass (sr, 250.0, 0.707); });
 
+    // Cone distortion. A stock door woofer pushed hard sounds thick and compressed
+    // (mostly 2nd and 3rd harmonics of the bass), not fizzy: the cone cannot radiate the
+    // high products well, so they are low-passed before they are added back.
+    // 0..100 % fades the effect in, 100..200 % drives the cones harder.
     coneMix = juce::jlimit (0.0f, 1.0f, s.distortion);
-    rattleAmount = 1.5f * s.distortion * car.coneDrive * (worn ? 1.6f : 1.0f);
-    rattleThreshold = 0.22f;
-    rattleBpL.setBandPass (sr, 1900.0, 1.8);
-    rattleBpR.setBandPass (sr, 2300.0, 1.8);
-    coneK   = 1.0f + 5.0f * car.coneDrive * s.distortion * (worn ? 1.4f : 1.0f);
+    coneK   = 1.0f + 2.0f * car.coneDrive * s.distortion * (worn ? 1.3f : 1.0f);
+    coneEven = 0.3f;
+    for (auto* f : { &coneLpL1, &coneLpL2, &coneLpR1, &coneLpR2 })
+        f->setCutoff (sr, 2200.0);
+    coneDcL.setCutoff (sr, 12.0);
+    coneDcR.setCutoff (sr, 12.0);
+
+    // Door trim rattle: a loose panel knocking in time with the bass. It is a periodic
+    // buzz, not noise, and only shows up when the cones are pushed past the default.
+    rattleAmount = 0.6f * car.coneDrive * juce::jlimit (0.0f, 1.0f, s.distortion - 0.7f) * (worn ? 1.4f : 1.0f);
+    rattleThreshold = 0.30f;
+    rattleBpL.setBandPass (sr, 1900.0, 2.5);
+    rattleBpR.setBandPass (sr, 2300.0, 2.5);
+
+    // Scratch: a torn or unglued cone. Noisy on bass peaks, so only with "Worn Speakers" on.
+    scratchAmount = s.worn ? 0.5f * car.coneDrive * s.distortion : 0.0f;
+    scratchBpL.setBandPass (sr, 2600.0, 1.2);
+    scratchBpR.setBandPass (sr, 3100.0, 1.2);
 
     // ---- Cabin --------------------------------------------------------------
     const bool back = s.seat == Seat::backSeat;
@@ -268,17 +288,22 @@ void MusicChain::process (float* left, float* right, int n) noexcept
         if (coneMix > 0.0f)
         {
             const float lowL = spkLowBand.l.process (l), lowR = spkLowBand.r.process (r);
-            l += coneMix * (std::tanh (coneK * lowL) / coneK - lowL);
-            r += coneMix * (std::tanh (coneK * lowR) / coneK - lowR);
+            l += coneMix * coneError (lowL, coneLpL1, coneLpL2, coneDcL);
+            r += coneMix * coneError (lowR, coneLpR1, coneLpR2, coneDcR);
 
-            // Door panel rattle: strong bass makes the trim buzz. The buzz follows the
-            // bass waveform above a threshold, coloured like a plastic panel.
+            const float push = std::max (0.0f, std::abs (lowL + lowR) * 0.5f - rattleThreshold);
             if (rattleAmount > 0.0f)
             {
-                const float push = std::max (0.0f, std::abs (lowL + lowR) * 0.5f - rattleThreshold);
-                const float buzz = push * nextNoise();
-                l += rattleAmount * rattleBpL.process (buzz);
-                r += rattleAmount * rattleBpR.process (buzz);
+                // knocks on every bass peak: a soft square that follows the bass polarity
+                const float knock = std::tanh (12.0f * push) * (lowL + lowR >= 0.0f ? 1.0f : -1.0f);
+                l += rattleAmount * rattleBpL.process (knock);
+                r += rattleAmount * rattleBpR.process (knock);
+            }
+            if (scratchAmount > 0.0f)
+            {
+                const float scratch = push * nextNoise();
+                l += scratchAmount * scratchBpL.process (scratch);
+                r += scratchAmount * scratchBpR.process (scratch);
             }
         }
 

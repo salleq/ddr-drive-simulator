@@ -41,9 +41,22 @@ private:
     std::array<Stereo, 8> spkExtra;  // only a measured car uses these
     int    numExtra = 0;
     Stereo spkLowBand;         // band that the cone distortion acts on
-    float  coneK = 1.0f, coneMix = 0.0f;
-    float  rattleAmount = 0.0f, rattleThreshold = 0.22f;
+    float  coneK = 1.0f, coneMix = 0.0f, coneEven = 0.0f;
+    OnePole coneLpL1, coneLpL2, coneLpR1, coneLpR2;   // keep the distortion products low, like a real cone
+    OnePole coneDcL, coneDcR;                        // removes the offset the even harmonics make
+    float  rattleAmount = 0.0f, rattleThreshold = 0.30f;
     Biquad rattleBpL, rattleBpR;
+    float  scratchAmount = 0.0f;                     // torn cone, only with "Worn Speakers"
+    Biquad scratchBpL, scratchBpR;
+
+    /** What the cone adds to the clean bass: soft compression with a little asymmetry. */
+    inline float coneError (float x, OnePole& lp1, OnePole& lp2, OnePole& dc) noexcept
+    {
+        const float y = std::tanh (coneK * x) / coneK;
+        float err = y - x + coneEven * (coneK - 1.0f) * y * y;
+        err -= dc.process (err);
+        return lp2.process (lp1.process (err));
+    }
 
     // Cabin and seat
     Stereo cabBoom, cabSeatShelf;
