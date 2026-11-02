@@ -71,6 +71,7 @@ void MusicChain::reset()
     for (auto& f : spkBands) f.reset();
     for (auto& f : spkExtra) f.reset();
     for (auto& f : cabModes) f.reset();
+    for (auto& f : cabDips) f.reset();
 
     std::fill (delayL.begin(), delayL.end(), 0.0f);
     std::fill (delayR.begin(), delayR.end(), 0.0f);
@@ -180,6 +181,20 @@ void MusicChain::update (const Settings& s)
     {
         const auto& m = car.modes[i];
         keepState (cabModes[i], [&] (Biquad& b) { b.setPeak (sr, m.freq, m.q, m.gainDb * s.resonance); });
+    }
+    // Seat nulls: where they fall depends on where your head is. The back seat sits in other
+    // places of the standing waves; the middle of the car misses the side-to-side ones.
+    const bool middle = s.seat == Seat::sweetSpot;
+    const double dipShift = back ? 0.86 : (middle ? 1.1 : 1.0);
+    const float  dipDepth = middle ? 0.5f : 1.0f;
+    for (size_t i = 0; i < cabDips.size(); ++i)
+    {
+        const auto& d = car.dips[i];
+        keepState (cabDips[i], [&] (Biquad& b)
+        {
+            if (std::abs (d.gainDb) > 0.01f) b.setPeak (sr, d.freq * dipShift, d.q, d.gainDb * dipDepth * s.resonance);
+            else b.setIdentity();
+        });
     }
     keepState (cabSeatShelf, [&] (Biquad& b) { if (back) b.setHighShelf (sr, 2500.0, -2.0); else b.setIdentity(); });
 
@@ -342,6 +357,7 @@ void MusicChain::process (float* left, float* right, int n) noexcept
 
         outL = cabBoom.l.process (outL); outR = cabBoom.r.process (outR);
         for (auto& m : cabModes) { outL = m.l.process (outL); outR = m.r.process (outR); }
+        for (auto& m : cabDips)  { outL = m.l.process (outL); outR = m.r.process (outR); }
         outL = cabSeatShelf.l.process (outL); outR = cabSeatShelf.r.process (outR);
 
         left[i]  = outL;

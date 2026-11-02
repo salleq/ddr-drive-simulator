@@ -56,6 +56,47 @@ int main()
         for (auto f : freqs) std::printf ("%6.1f", magAt (f) - ref);
         std::printf ("\n");
     }
+    // Bass at the driver's seat, in narrow (1/24 octave) steps, so the deep seat dips show.
+    // The 1/3-octave table above averages them away.
+    const double bassFreqs[] { 40, 45, 50, 56, 63, 71, 80, 85, 90, 95, 100, 112, 125, 140, 160, 180, 190, 200, 212, 225, 250 };
+    std::printf ("\nBass at the driver's seat, dB re 1 kHz (narrow)\n%-18s", "Hz");
+    for (auto f : bassFreqs) std::printf ("%6.0f", f);
+    std::printf ("\n");
+    for (const auto& car : ddr::carProfiles())
+    {
+        ddr::Settings s;
+        s.car = &car;
+        s.seat = ddr::Seat::driver;
+        s.distortion = 0.0f;
+        s.loudness = false;
+        s.svc = 0;
+        s.limiter = false;
+        s.volume = 20;
+        s.reflections = 0.0f;
+        ddr::MusicChain chain;
+        chain.prepare (sr, n);
+        chain.update (s);
+        chain.reset();
+        std::vector<float> l ((size_t) n * 2, 0.0f), r ((size_t) n * 2, 0.0f);
+        l[0] = r[0] = 0.01f;
+        chain.process (l.data(), r.data(), n);
+        juce::dsp::FFT fft (order);
+        std::vector<float> data ((size_t) n * 2, 0.0f);
+        for (int i = 0; i < n; ++i) data[(size_t) i] = l[(size_t) i] * 100.0f;
+        fft.performFrequencyOnlyForwardTransform (data.data());
+        auto magAt = [&] (double f, double w)
+        {
+            const int lo = (int) (f / w / sr * n), hi = std::max (lo + 1, (int) (f * w / sr * n));
+            double sum = 0.0;
+            for (int k = lo; k <= hi; ++k) sum += (double) data[(size_t) k] * data[(size_t) k];
+            return 10.0 * std::log10 (sum / (hi - lo + 1) + 1.0e-20);
+        };
+        const double ref = magAt (1000.0, 1.12);
+        std::printf ("%-18s", car.name);
+        for (auto f : bassFreqs) std::printf ("%6.1f", magAt (f, 1.015) - ref);
+        std::printf ("\n");
+    }
+
     // Noise spectrum per road surface at 100 km/h, as dB SPL per third octave (95 dB SPL = 0 dBFS)
     std::printf ("\nNoise at 100 km/h, dB SPL per third octave, Family Hatchback\n%-18s", "Hz");
     for (auto f : freqs) std::printf ("%6.0f", f);

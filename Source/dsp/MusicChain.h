@@ -61,6 +61,7 @@ private:
     // Cabin and seat
     Stereo cabBoom, cabSeatShelf;
     std::array<Stereo, 3> cabModes;
+    std::array<Stereo, 2> cabDips;
     std::vector<float> delayL, delayR;
     int    writePos = 0, delayMask = 0;
     int    seatDelayL = 0, seatDelayR = 0;
