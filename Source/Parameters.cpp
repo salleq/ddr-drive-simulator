@@ -4,45 +4,46 @@ namespace ddr
 {
 // Rough values for typical stock systems. They are educated guesses, not measurements:
 // door woofers in a leaky door, a crossover dip around 3 kHz, cabin gain below ~70 Hz
-// and a few strong cabin modes between 60 and 200 Hz.
+// a few strong cabin modes between 60 and 200 Hz, and two deep nulls at the front
+// seats where the cabin's standing waves cancel the bass.
 const std::array<CarProfile, 6>& carProfiles()
 {
     static const std::array<CarProfile, 6> profiles {{
         { "Family Wagon",
           70.0f, 0.9f, {{ { 180.0f, 1.2f, 2.5f }, { 1900.0f, 2.0f, 3.5f }, { 3600.0f, 3.0f, -5.0f }, { 7000.0f, 1.5f, 2.0f } }},
           16000.0f, 0.40f, false,
-          55.0f, 9.0f, {{ { 68.0f, 6.0f, 5.0f }, { 112.0f, 7.0f, -6.0f }, { 155.0f, 6.0f, 4.0f } }},
-          0.60f, 1.45f, -1.0f, true, {} },
+          55.0f, 9.0f, {{ { 68.0f, 6.0f, 5.0f }, { 112.0f, 7.0f, -9.0f }, { 155.0f, 6.0f, 4.0f } }},
+          0.60f, 1.45f, -1.0f, true, {}, {{ { 88.0f, 8.0f, -16.0f }, { 196.0f, 7.0f, -9.0f } }} },
 
         { "Family Hatchback",
           75.0f, 1.0f, {{ { 220.0f, 1.5f, 3.0f }, { 1600.0f, 1.8f, 4.0f }, { 3200.0f, 3.0f, -6.0f }, { 6500.0f, 1.5f, 1.5f } }},
           15000.0f, 0.50f, false,
-          62.0f, 8.0f, {{ { 74.0f, 6.0f, 5.0f }, { 120.0f, 7.0f, -6.0f }, { 165.0f, 6.0f, 4.0f } }},
-          0.65f, 1.42f, 0.0f, true, {} },
+          62.0f, 8.0f, {{ { 74.0f, 6.0f, 5.0f }, { 120.0f, 7.0f, -9.0f }, { 165.0f, 6.0f, 4.0f } }},
+          0.65f, 1.42f, 0.0f, true, {}, {{ { 94.0f, 8.0f, -15.0f }, { 210.0f, 7.0f, -9.0f } }} },
 
         { "Old Family Car",
           85.0f, 1.2f, {{ { 250.0f, 1.4f, 3.5f }, { 1400.0f, 1.6f, 5.0f }, { 3000.0f, 2.5f, -7.0f }, { 5500.0f, 1.2f, -3.0f } }},
           13000.0f, 0.75f, true,
-          62.0f, 8.0f, {{ { 74.0f, 6.0f, 5.0f }, { 118.0f, 7.0f, -7.0f }, { 160.0f, 6.0f, 5.0f } }},
-          0.70f, 1.40f, 3.0f, true, {} },
+          62.0f, 8.0f, {{ { 74.0f, 6.0f, 5.0f }, { 118.0f, 7.0f, -10.0f }, { 160.0f, 6.0f, 5.0f } }},
+          0.70f, 1.40f, 3.0f, true, {}, {{ { 90.0f, 8.0f, -16.0f }, { 205.0f, 7.0f, -10.0f } }} },
 
         { "City Car",
           100.0f, 1.3f, {{ { 300.0f, 1.4f, 4.0f }, { 1300.0f, 1.6f, 5.0f }, { 2800.0f, 2.5f, -6.0f }, { 6000.0f, 1.5f, 3.0f } }},
           13000.0f, 0.80f, false,
-          72.0f, 10.0f, {{ { 85.0f, 6.0f, 6.0f }, { 135.0f, 7.0f, -7.0f }, { 190.0f, 6.0f, 5.0f } }},
-          0.80f, 1.30f, 4.0f, false, {} },
+          72.0f, 10.0f, {{ { 85.0f, 6.0f, 6.0f }, { 135.0f, 7.0f, -10.0f }, { 190.0f, 6.0f, 5.0f } }},
+          0.80f, 1.30f, 4.0f, false, {}, {{ { 104.0f, 8.0f, -16.0f }, { 228.0f, 7.0f, -10.0f } }} },
 
         { "Family SUV",
           65.0f, 0.9f, {{ { 160.0f, 1.2f, 3.0f }, { 2000.0f, 2.0f, 3.0f }, { 3800.0f, 3.0f, -5.0f }, { 7500.0f, 1.5f, 2.0f } }},
           16000.0f, 0.40f, false,
-          48.0f, 8.0f, {{ { 58.0f, 6.0f, 4.0f }, { 98.0f, 7.0f, -5.0f }, { 140.0f, 6.0f, 4.0f } }},
-          0.50f, 1.55f, 0.0f, true, {} },
+          48.0f, 8.0f, {{ { 58.0f, 6.0f, 4.0f }, { 98.0f, 7.0f, -8.0f }, { 140.0f, 6.0f, 4.0f } }},
+          0.50f, 1.55f, 0.0f, true, {}, {{ { 80.0f, 8.0f, -15.0f }, { 182.0f, 7.0f, -8.0f } }} },
 
         { "Premium Sedan",
           32.0f, 0.7f, {{ { 90.0f, 1.0f, 2.0f }, { 2500.0f, 1.5f, 1.0f }, { 4500.0f, 2.0f, -1.5f }, { 10000.0f, 1.0f, 1.0f } }},
           19000.0f, 0.15f, false,
           50.0f, 5.0f, {{ { 60.0f, 5.0f, 2.0f }, { 105.0f, 6.0f, -2.0f }, { 150.0f, 5.0f, 1.5f } }},
-          0.40f, 1.48f, -6.0f, true, {} },
+          0.40f, 1.48f, -6.0f, true, {}, {{ { 92.0f, 7.0f, -7.0f }, { 200.0f, 6.0f, -4.0f } }} },
     }};
     return profiles;
 }

@@ -9,7 +9,7 @@
 | What happens | What it does to the mix |
 | --- | --- |
 | **Road, tyre, wind and engine noise** – roughly 65–72 dB(A) at 100 km/h, mostly below 500 Hz | Masks the bass line, the low end of the kick and the quiet details |
-| **Cabin boom** – a small closed space lifts everything below ~80 Hz and adds strong resonances at 60–200 Hz | Bass gets thick and single notes jump out |
+| **Cabin boom** – a small closed space lifts everything below ~80 Hz and adds strong resonances at 60–200 Hz, plus deep dips at your seat | Bass gets thick, single notes jump out and others vanish or sound out of tune |
 | **Cheap door speakers** – no real bass below 70–100 Hz, peaks and dips around the crossover, distortion when loud | Vocal and snare clarity depends on a bumpy 1–4 kHz range |
 | **You sit to one side** – the near speaker arrives ~1–2 ms earlier and louder | The centre image moves, comb filtering colours the mids |
 | **Head unit tricks** – loudness, speed-dependent volume, limiter | Dynamics get squashed or pumped |

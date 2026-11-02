@@ -480,7 +480,7 @@ DDRPanel::DDRPanel (DDRAudioProcessor& p)
     window.button.setTooltip ("Driver's window open: much more wind and buffeting.");
     noiseOnly.button.setTooltip ("Listen to the noise alone.");
     boom.slider.setTooltip ("Cabin bass build-up below about 80 Hz, relative to the chosen car.");
-    resonance.slider.setTooltip ("Strength of the cabin's narrow bass resonances and dips (60-200 Hz).");
+    resonance.slider.setTooltip ("Strength of the cabin's narrow bass resonances and the deep dips at your seat (60-250 Hz).");
     reflections.slider.setTooltip ("Early reflections from the windows and dashboard.");
     seat.box.setTooltip ("Where you sit. Off-centre seats hear the near speaker first and louder.");
     rhd.button.setTooltip ("Mirror the car for right-hand drive countries.");

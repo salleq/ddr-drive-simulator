@@ -74,6 +74,10 @@ struct CarProfile
     bool  rearSpeakers;    // rear door speakers as well as front ones
     // extra speaker EQ bands, only used by a measured car (gain 0 = off)
     std::array<Band, 8> extraBands {};
+    // deep, narrow cabin nulls at the front seats (standing waves cancelling the bass).
+    // A bass note that lands in one almost vanishes, so its harmonics carry the pitch and
+    // the note can sound wrong. A measured car has these in its own bands (gain 0 = off).
+    std::array<Band, 2> dips {};
 };
 
 /** Index of "My Car" in the car parameter: the car measured with a phone. It comes after the presets. */
