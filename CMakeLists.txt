@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(DDR VERSION 0.3.0 LANGUAGES C CXX)
+project(DDR VERSION 0.4.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -22,6 +22,20 @@ else()
         GIT_TAG 8.0.4
         GIT_SHALLOW TRUE)
     FetchContent_MakeAvailable(JUCE)
+endif()
+
+# CLAP format (for Bitwig, Reaper, FL Studio, Studio One...) via clap-juce-extensions.
+# Use a local checkout if CLAP_JUCE_EXTENSIONS_DIR is given (with its submodules), otherwise download it.
+set(CLAP_JUCE_EXTENSIONS_DIR "" CACHE PATH "Path to a local clap-juce-extensions checkout (optional)")
+if(CLAP_JUCE_EXTENSIONS_DIR)
+    add_subdirectory(${CLAP_JUCE_EXTENSIONS_DIR} clap-juce-extensions EXCLUDE_FROM_ALL)
+else()
+    include(FetchContent)
+    FetchContent_Declare(clap-juce-extensions
+        GIT_REPOSITORY https://github.com/free-audio/clap-juce-extensions.git
+        GIT_TAG 7adee3a1bd4684d4caa5601100e364abccff4b4d
+        GIT_SUBMODULES_RECURSE TRUE)
+    FetchContent_MakeAvailable(clap-juce-extensions)
 endif()
 
 # Audio Unit as well on macOS, so Logic and GarageBand users can run DDR too
@@ -51,6 +65,11 @@ juce_add_plugin(DDR
     MICROPHONE_PERMISSION_ENABLED TRUE
     MICROPHONE_PERMISSION_TEXT "DDR plays audio from an input (for example a loopback device) through the car."
     COPY_PLUGIN_AFTER_BUILD FALSE)
+
+# Builds "DDR Drive Simulator.clap" (target DDR_CLAP) next to the VST3
+clap_juce_extensions_plugin(TARGET DDR
+    CLAP_ID "com.salleq.ddr"
+    CLAP_FEATURES audio-effect utility stereo)
 
 # The Retro skin's background image, compiled into the plugin
 juce_add_binary_data(DDRAssets SOURCES assets/background.svg)

@@ -1,7 +1,7 @@
 DDR - (Dreaded) Drive Simulator
 ================================
 
-Free VST3 plugin that lets you hear your mix the way it sounds in a stock family car.
+Free VST3 and CLAP plugin that lets you hear your mix the way it sounds in a stock family car.
 
 HEADS-UP: DDR is 100 % vibe coded. Every line of it was written by an AI,
 with a human steering, listening and testing. It comes with no warranty, so
@@ -10,6 +10,11 @@ someone get a mix that sounds good in the car, too.
 
 EASIEST: use the installer (.exe on Windows, .pkg on Mac) from the Releases page.
 This zip is for installing by hand.
+
+VST3 OR CLAP?
+  Both are the same DDR. Use CLAP if your DAW supports it (Bitwig, Reaper,
+  FL Studio, Studio One...), otherwise VST3. If you install both, your DAW
+  lists DDR twice; pick either one.
 
 WHICH ZIP?
   Windows PC (Intel/AMD) ......... DDR-Windows.zip
@@ -23,6 +28,8 @@ WHICH ZIP?
 INSTALL ON WINDOWS
 1. Copy the folder "DDR Drive Simulator.vst3" to:
    C:\Program Files\Common Files\VST3
+   For the CLAP version, copy "DDR Drive Simulator.clap" to:
+   C:\Program Files\Common Files\CLAP
 2. Rescan plugins in your DAW.
 
 INSTALL ON macOS
@@ -31,16 +38,21 @@ INSTALL ON macOS
    or ~/Library/Audio/Plug-Ins/VST3  (just you)
    Logic Pro / GarageBand use the Audio Unit instead: copy
    "DDR Drive Simulator.component" to /Library/Audio/Plug-Ins/Components
+   For the CLAP version, copy "DDR Drive Simulator.clap" to
+   /Library/Audio/Plug-Ins/CLAP
 2. The plugin is not notarized by Apple, so macOS blocks it at first.
    Open Terminal and run (each on one line):
    xattr -dr com.apple.quarantine "/Library/Audio/Plug-Ins/VST3/DDR Drive Simulator.vst3"
    xattr -dr com.apple.quarantine "/Library/Audio/Plug-Ins/Components/DDR Drive Simulator.component"
+   xattr -dr com.apple.quarantine "/Library/Audio/Plug-Ins/CLAP/DDR Drive Simulator.clap"
    (change the paths if you used your own Library folder)
 3. Rescan plugins in your DAW.
 
 INSTALL ON LINUX (x64 or ARM64)
 1. Copy "DDR Drive Simulator.vst3" to ~/.vst3 (create the folder if needed)
    or to /usr/lib/vst3 for all users.
+   For the CLAP version, copy "DDR Drive Simulator.clap" to ~/.clap
+   (or /usr/lib/clap for all users).
 2. Rescan plugins in your DAW (Reaper, Bitwig, Ardour...).
 
 DESKTOP APP (no DAW needed)

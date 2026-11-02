@@ -7,11 +7,15 @@
     <domains enable_anywhere="false" enable_currentUserHome="false" enable_localSystem="true"/>
     <choices-outline>
         <line choice="vst3"/>
+        <line choice="clap"/>
         <line choice="au"/>
         <line choice="app"/>
     </choices-outline>
     <choice id="vst3" title="VST3 plugin" description="For Ableton Live, Cubase, Reaper, Studio One, Bitwig and most other DAWs.">
         <pkg-ref id="com.salleq.ddr.vst3"/>
+    </choice>
+    <choice id="clap" title="CLAP plugin" description="For Bitwig, Reaper, FL Studio, Studio One and other DAWs that load CLAP plugins.">
+        <pkg-ref id="com.salleq.ddr.clap"/>
     </choice>
     <choice id="au" title="Audio Unit" description="For Logic Pro and GarageBand.">
         <pkg-ref id="com.salleq.ddr.au"/>
@@ -20,6 +24,7 @@
         <pkg-ref id="com.salleq.ddr.app"/>
     </choice>
     <pkg-ref id="com.salleq.ddr.vst3" version="@VERSION@">vst3.pkg</pkg-ref>
+    <pkg-ref id="com.salleq.ddr.clap" version="@VERSION@">clap.pkg</pkg-ref>
     <pkg-ref id="com.salleq.ddr.au" version="@VERSION@">au.pkg</pkg-ref>
     <pkg-ref id="com.salleq.ddr.app" version="@VERSION@">app.pkg</pkg-ref>
 </installer-gui-script>
