@@ -138,6 +138,16 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
         {
             const int i = roundToInt (v);
             return i == 0 ? String ("Centre") : (i < 0 ? "Front " + String (-i) : "Rear " + String (i));
+        })
+        .withValueFromStringFunction ([] (const String& text)
+        {
+            // reads back "Front 40", "Rear 25", "Centre", or a plain number (negative = front)
+            const auto t = text.trim();
+            const auto amount = t.retainCharacters ("0123456789.").getFloatValue();
+            if (t.startsWithIgnoreCase ("f")) return -amount;
+            if (t.startsWithIgnoreCase ("r")) return amount;
+            if (t.startsWithIgnoreCase ("c")) return 0.0f;
+            return t.getFloatValue();
         })));
 
     // Head unit
