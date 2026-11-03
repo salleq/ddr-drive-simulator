@@ -59,7 +59,7 @@ jobs:
       - name: Build
         shell: bash
         run: |
-          targets="DDR_VST3 DDR_Standalone"
+          targets="DDR_VST3 DDR_CLAP DDR_Standalone"
           if [ "$RUNNER_OS" = "macOS" ]; then targets="$targets DDR_AU"; fi
           if [ "${{ matrix.selftest }}" = "true" ]; then targets="$targets ddr_snapshot"; fi
           cmake --build build --config Release --target $targets --parallel 4
@@ -71,6 +71,11 @@ jobs:
           path=$(find build -type d -name "DDR Drive Simulator.vst3" -path "*Release*" | head -1)
           echo "Found: $path"
           echo "path=$path" >> "$GITHUB_OUTPUT"
+          # CLAP: a bundle folder on macOS, a single file on Windows and Linux
+          clap=$(find build -name "DDR Drive Simulator.clap" -path "*Release*" -prune | head -1)
+          echo "CLAP: $clap"
+          test -n "$clap"
+          echo "clap=$clap" >> "$GITHUB_OUTPUT"
           au=$(find build -type d -name "DDR Drive Simulator.component" -path "*Release*" | head -1)
           echo "au=$au" >> "$GITHUB_OUTPUT"
           # the desktop app: a .app bundle on macOS, an .exe on Windows, a plain binary on Linux
@@ -87,6 +92,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           codesign --force --deep --sign - "${{ steps.plugin.outputs.path }}"
+          codesign --force --deep --sign - "${{ steps.plugin.outputs.clap }}"
           codesign --force --deep --sign - "${{ steps.plugin.outputs.au }}"
           codesign --force --deep --sign - "${{ steps.plugin.outputs.app }}"
 
@@ -102,7 +108,7 @@ jobs:
         run: |
           version=$(grep -m1 -o 'project(DDR VERSION [0-9.]*' CMakeLists.txt | awk '{print $3}')
           mkdir -p installers
-          installer/macos/build_pkg.sh "${{ steps.plugin.outputs.path }}" "${{ steps.plugin.outputs.au }}" \
+          installer/macos/build_pkg.sh "${{ steps.plugin.outputs.path }}" "${{ steps.plugin.outputs.clap }}" "${{ steps.plugin.outputs.au }}" \
             "${{ steps.plugin.outputs.app }}" "$version" "installers/DDR-$version-macOS-Installer.pkg"
 
       - name: Validate with pluginval
@@ -117,11 +123,20 @@ jobs:
           $run ./${{ matrix.pluginval_bin }} --strictness-level 5 --validate-in-process --skip-gui-tests \
             --timeout-ms 300000 --validate "${{ steps.plugin.outputs.path }}"
 
+      - name: Validate the CLAP with clap-validator
+        if: matrix.name == 'Linux'
+        shell: bash
+        run: |
+          curl -sSL -o clap-validator.tar.gz https://github.com/free-audio/clap-validator/releases/download/0.3.2/clap-validator-0.3.2-ubuntu-18.04.tar.gz
+          tar xzf clap-validator.tar.gz
+          xvfb-run -a ./clap-validator validate --only-failed "${{ steps.plugin.outputs.clap }}"
+
       - name: Package
         shell: bash
         run: |
           mkdir -p dist
           cp -R "${{ steps.plugin.outputs.path }}" dist/
+          cp -R "${{ steps.plugin.outputs.clap }}" dist/
           if [ -n "${{ steps.plugin.outputs.au }}" ]; then cp -R "${{ steps.plugin.outputs.au }}" dist/; fi
           cp -R "${{ steps.plugin.outputs.app }}" dist/
           cp docs/INSTALL.txt dist/

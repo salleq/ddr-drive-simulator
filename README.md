@@ -1,6 +1,6 @@
 # DDR – (Dreaded) Drive Simulator
 
-**A free VST3 plugin for Windows, macOS and Linux (plus Audio Unit on macOS for Logic and GarageBand) that lets you hear your mix the way it sounds in an ordinary family car** – with the stock speakers, the cabin boom and the road noise. Put it last on your master bus, pick a car, set the speed and check whether the vocal, the bass and the snare still make it through.
+**A free VST3 and CLAP plugin for Windows, macOS and Linux (plus Audio Unit on macOS for Logic and GarageBand) that lets you hear your mix the way it sounds in an ordinary family car** – with the stock speakers, the cabin boom and the road noise. Put it last on your master bus, pick a car, set the speed and check whether the vocal, the bass and the snare still make it through.
 
 ![DDR basic view](docs/ddr-basic.png)
 
@@ -99,7 +99,7 @@ Download from the [Releases page](https://github.com/salleq/ddr-drive-simulator/
 | Mac (Apple Silicon and Intel) | `DDR-…-macOS-Installer.pkg` | `DDR-macOS.zip` |
 | Linux x64 / ARM64 | – | `DDR-Linux.zip` / `DDR-Linux-ARM64.zip` |
 
-The installers put the plugin in the standard folders and install the desktop app too, and the Windows one adds an uninstaller. Manual install steps are in `INSTALL.txt` inside each zip ([read it here](docs/INSTALL.txt)).
+The installers put the plugin (VST3 and CLAP, plus the Audio Unit on Mac) in the standard folders and install the desktop app too, and the Windows one adds an uninstaller. Manual install steps are in `INSTALL.txt` inside each zip ([read it here](docs/INSTALL.txt)).
 
 **macOS:** DDR is free and not notarized by Apple (that needs a paid developer account), so the first time you open the `.pkg` macOS says it can't check it. Open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. You only do this once.
 
@@ -118,15 +118,16 @@ sudo apt install libasound2-dev libx11-dev libxrandr-dev libxinerama-dev libxcur
 
 ```sh
 cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --config Release --target DDR_VST3
+cmake --build build --config Release --target DDR_VST3 DDR_CLAP
 ```
 
 Developer extras:
 
 - `-DJUCE_DIR=/path/to/JUCE` uses a local JUCE checkout instead of downloading it
+- `-DCLAP_JUCE_EXTENSIONS_DIR=/path/to/clap-juce-extensions` does the same for [clap-juce-extensions](https://github.com/free-audio/clap-juce-extensions) (check it out with `--recursive`), which builds the CLAP version
 - `-DDDR_BUILD_TOOLS=ON` builds `ddr_snapshot`, which renders the UI to PNG and runs a quick level and stability check, and `ddr_caltest`, which tests My Car end to end with a simulated car and phone (`ddr_caltest --analyse recording.wav` prints the measured curve of a real recording)
 
-GitHub Actions builds and validates (pluginval) all three platforms on every push. Pushing a tag like `v0.1.0` publishes a release with the zips.
+GitHub Actions builds and validates all platforms on every push (pluginval for the VST3, clap-validator for the CLAP). Pushing a tag like `v0.1.0` publishes a release with the zips.
 
 ## How it works
 
